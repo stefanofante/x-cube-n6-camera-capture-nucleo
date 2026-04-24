@@ -1,0 +1,218 @@
+{
+    // Task per firmare + programmare l'applicazione STM32N6 su flash Octo-SPI esterna.
+    // Richiede STM32CubeProgrammer installato (default: "C:/Program Files/STMicroelectronics/...").
+    // Gli input "cubeProgBin" / "signingToolBin" consentono l'override a runtime.
+    //
+    // NUCLEO-N657X0-Q: flash esterna onboard = MX25UM51245G (Macronix 512 Mb Octo-SPI).
+    //
+    // Flusso tipico: eseguire in ordine
+    //   1) "N6: Sign App"
+    //   2) "N6: Sign FSBL"          (solo la prima volta o se l'FSBL cambia)
+    //   3) "N6: Program FSBL"       (solo la prima volta)
+    //   4) "N6: Program App"
+    // Oppure "N6: Full Program (FSBL + App)" che li incatena.
+    //
+    // NOTE:
+    //  - Il linker script attuale (STM32N657xx_nucleo.ld) e' SOLO-RAM,
+    //    compatibile con il modello FSBL "Load & Run": l'FSBL copia l'app
+    //    da flash a SRAM al boot.
+    //  - BOOT pin sulla Nucleo-N6 devono essere impostati su "Flash boot".
+    "version": "2.0.0",
+    "inputs": [
+        {
+            "id": "cubeProgBin",
+            "type": "promptString",
+            "description": "Path di STM32_Programmer_CLI.exe (invio = default installato)",
+            "default": "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe"
+        },
+        {
+            "id": "signingToolBin",
+            "type": "promptString",
+            "description": "Path di STM32_SigningTool_CLI.exe (invio = default installato)",
+            "default": "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/STM32_SigningTool_CLI.exe"
+        },
+        {
+            "id": "externalLoader",
+            "type": "pickString",
+            "description": "External Loader (.stldr) per la flash Octo-SPI onboard",
+            "options": [
+                "MX25UM51245G_STM32N6570-NUCLEO.stldr",
+                "MX66UW1G45G_STM32N6570-DK.stldr"
+            ],
+            "default": "MX25UM51245G_STM32N6570-NUCLEO.stldr"
+        },
+        {
+            "id": "fsblBin",
+            "type": "promptString",
+            "description": "Percorso del binario FSBL gia' compilato (bin prodotto dal sub-progetto Tools/FSBL)",
+            "default": "${workspaceFolder}/Tools/FSBL/build/FSBL.bin"
+        }
+    ],
+    "tasks": [
+        {
+            "label": "N6: Configure FSBL",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-S",
+                "${workspaceFolder}/Tools/FSBL",
+                "-B",
+                "${workspaceFolder}/Tools/FSBL/build",
+                "-G",
+                "Ninja",
+                "--toolchain",
+                "${workspaceFolder}/cmake/gcc-arm-none-eabi.cmake"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "N6: Build FSBL",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/Tools/FSBL/build"
+            ],
+            "dependsOn": [
+                "N6: Configure FSBL"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "group": "build"
+        },
+        {
+            "label": "N6: Sign App",
+            "type": "shell",
+            "command": "${input:signingToolBin}",
+            "args": [
+                "-bin",
+                "${workspaceFolder}/build/Debug/x-cube-n6-camera-capture-nucleo.bin",
+                "-nk",
+                "-t",
+                "ssbl",
+                "-hv",
+                "2.3",
+                "-o",
+                "${workspaceFolder}/build/Debug/x-cube-n6-camera-capture-nucleo_signed.bin"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "N6: Sign FSBL",
+            "type": "shell",
+            "command": "${input:signingToolBin}",
+            "args": [
+                "-bin",
+                "${input:fsblBin}",
+                "-nk",
+                "-t",
+                "fsbl",
+                "-hv",
+                "2.3",
+                "-o",
+                "${workspaceFolder}/build/Debug/fsbl_signed.bin"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "N6: Program FSBL",
+            "type": "shell",
+            "command": "${input:cubeProgBin}",
+            "args": [
+                "-c",
+                "port=SWD",
+                "mode=HOTPLUG",
+                "-el",
+                "${input:externalLoader}",
+                "-hardRst",
+                "-w",
+                "${workspaceFolder}/build/Debug/fsbl_signed.bin",
+                "0x70000000"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "N6: Program App",
+            "type": "shell",
+            "command": "${input:cubeProgBin}",
+            "args": [
+                "-c",
+                "port=SWD",
+                "mode=HOTPLUG",
+                "-el",
+                "${input:externalLoader}",
+                "-hardRst",
+                "-w",
+                "${workspaceFolder}/build/Debug/x-cube-n6-camera-capture-nucleo_signed.bin",
+                "0x70100000"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "N6: Build + Sign + Program App",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "N6: Sign App",
+                "N6: Program App"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "N6: Full Program (FSBL + App)",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "N6: Build FSBL",
+                "N6: Sign FSBL",
+                "N6: Sign App",
+                "N6: Program FSBL",
+                "N6: Program App"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "N6: Erase External Flash",
+            "type": "shell",
+            "command": "${input:cubeProgBin}",
+            "args": [
+                "-c",
+                "port=SWD",
+                "mode=HOTPLUG",
+                "-el",
+                "${input:externalLoader}",
+                "-hardRst",
+                "-e",
+                "all"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        }
+    ]
+}

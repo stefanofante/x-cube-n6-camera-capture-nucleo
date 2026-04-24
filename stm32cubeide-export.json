@@ -1,0 +1,843 @@
+{
+  "name": "x-cube-n6-camera-capture-nucleo",
+  "source_ide": "STM32CubeIDE",
+  "path": "c:/devel/x-cube-n6-camera-capture-main/STM32CubeIDE/NUCLEO-N657X0-Q",
+  "languages": [
+      "C"
+  ],
+  "configurations": [
+    {
+      "name": "Debug",
+      "output_filename": "x-cube-n6-camera-capture-nucleo",
+      "type": "Executable",
+      "toolchain_type": "GCC",
+      "toolchain_prefix": "arm-none-eabi-",
+      "mcu": "STM32N657X0HxQ",
+      "board": "NUCLEO-N657X0-Q",
+      "sources": [
+        { "path": "../../Gcc/Src/console.c" },
+
+        { "path": "../../Gcc/Src/freertos_libc.c" },
+
+        { "path": "../../Gcc/Src/syscalls.c" },
+
+        { "path": "../../Lib/Camera_Middleware/ISP_Library/isp/Src/isp_ae_algo.c" },
+
+        { "path": "../../Lib/Camera_Middleware/ISP_Library/isp/Src/isp_algo.c" },
+
+        { "path": "../../Lib/Camera_Middleware/ISP_Library/isp/Src/isp_awb_algo.c" },
+
+        { "path": "../../Lib/Camera_Middleware/ISP_Library/isp/Src/isp_cmd_parser.c" },
+
+        { "path": "../../Lib/Camera_Middleware/ISP_Library/isp/Src/isp_core.c" },
+
+        { "path": "../../Lib/Camera_Middleware/ISP_Library/isp/Src/isp_services.c" },
+
+        { "path": "../../Lib/Camera_Middleware/ISP_Library/isp/Src/isp_tool_com.c" },
+
+        { "path": "../../Lib/Camera_Middleware/cmw_camera.c" },
+
+        { "path": "../../Lib/Camera_Middleware/cmw_utils.c" },
+
+        { "path": "../../Lib/Camera_Middleware/sensors/cmw_imx335.c" },
+
+        { "path": "../../Lib/Camera_Middleware/sensors/cmw_vd1943.c" },
+
+        { "path": "../../Lib/Camera_Middleware/sensors/cmw_vd55g1.c" },
+
+        { "path": "../../Lib/Camera_Middleware/sensors/cmw_vd66gy.c" },
+
+        { "path": "../../Lib/Camera_Middleware/sensors/imx335/imx335.c" },
+
+        { "path": "../../Lib/Camera_Middleware/sensors/imx335/imx335_reg.c" },
+
+        { "path": "../../Lib/Camera_Middleware/sensors/vd1943/vd1943.c" },
+
+        { "path": "../../Lib/Camera_Middleware/sensors/vd55g1/vd55g1.c" },
+
+        { "path": "../../Lib/Camera_Middleware/sensors/vd6g/vd6g.c" },
+
+        { "path": "../../Lib/FreeRTOS/Source/croutine.c" },
+
+        { "path": "../../Lib/FreeRTOS/Source/event_groups.c" },
+
+        { "path": "../../Lib/FreeRTOS/Source/list.c" },
+
+        { "path": "../../Lib/FreeRTOS/Source/portable/GCC/ARM_CM55_NTZ/non_secure/port.c" },
+
+        { "path": "../../Lib/FreeRTOS/Source/portable/GCC/ARM_CM55_NTZ/non_secure/portasm.c" },
+
+        { "path": "../../Lib/FreeRTOS/Source/queue.c" },
+
+        { "path": "../../Lib/FreeRTOS/Source/tasks.c" },
+
+        { "path": "../../Lib/FreeRTOS/Source/timers.c" },
+
+        { "path": "../../Lib/uvcl/Src/usbx/uvcl_usbx.c" },
+
+        { "path": "../../Lib/uvcl/Src/uvcl.c" },
+
+        { "path": "../../Lib/uvcl/Src/uvcl_desc.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/BSP/Components/mx25um51245g/mx25um51245g.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/BSP/STM32N6xx_Nucleo/stm32n6xx_nucleo.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/BSP/STM32N6xx_Nucleo/stm32n6xx_nucleo_bus.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/BSP/STM32N6xx_Nucleo/stm32n6xx_nucleo_xspi.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/CMSIS/Device/ST/STM32N6xx/Source/Templates/gcc/startup_stm32n657xx.s" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/CMSIS/Device/ST/STM32N6xx/Source/Templates/system_stm32n6xx_fsbl.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_bsec.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_cacheaxi.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_cortex.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_dcmipp.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_dma2d.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_exti.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_gpio.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_i2c.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_i2c_ex.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_jpeg.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_ltdc.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_ltdc_ex.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_pcd.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_pcd_ex.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_pwr.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_pwr_ex.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_ramcfg.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_rcc.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_rcc_ex.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_rif.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_tim.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_uart.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_hal_xspi.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_ll_usb.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_class_dpump_activate.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_class_dpump_change.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_class_dpump_deactivate.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_class_dpump_entry.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_class_dpump_initialize.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_class_dpump_read.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_class_dpump_read_run.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_class_dpump_thread.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_class_dpump_write.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_class_dpump_write_run.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_alternate_setting_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_alternate_setting_set.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_class_register.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_class_unregister.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_clear_feature.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_configuration_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_configuration_set.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_control_request_process.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_descriptor_send.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_disconnect.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_endpoint_stall.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_get_status.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_host_wakeup.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_initialize.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_interface_delete.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_interface_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_interface_set.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_interface_start.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_microsoft_extension_register.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_set_feature.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_tasks_run.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_transfer_abort.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_transfer_all_request_abort.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_transfer_request.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_transfer_run.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_device_stack_uninitialize.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_system_error_handler.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_system_initialize.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_system_tasks_run.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_system_uninitialize.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_debug_callback_register.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_debug_log.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_delay_ms.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_descriptor_pack.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_descriptor_parse.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_error_callback_register.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_event_flags_create.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_event_flags_delete.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_event_flags_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_event_flags_set.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_long_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_long_get_big_endian.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_long_put.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_long_put_big_endian.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_allocate.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_allocate_add_safe.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_allocate_mulc_safe.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_allocate_mulv_safe.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_byte_pool_create.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_byte_pool_search.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_compare.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_copy.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_free.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_free_block_best_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_memory_set.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_mutex_create.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_mutex_delete.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_mutex_off.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_mutex_on.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_pci_class_scan.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_pci_read.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_pci_write.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_physical_address.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_semaphore_create.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_semaphore_delete.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_semaphore_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_semaphore_put.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_set_interrupt_handler.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_short_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_short_get_big_endian.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_short_put.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_short_put_big_endian.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_string_length_check.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_string_length_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_string_to_unicode.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_thread_create.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_thread_delete.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_thread_identify.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_thread_relinquish.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_thread_resume.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_thread_schedule_other.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_thread_sleep.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_thread_suspend.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_timer_create.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_timer_delete.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_unicode_to_string.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/src/ux_utility_virtual_address.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_activate.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_change.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_control_request.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_deactivate.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_entry.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_initialize.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_ioctl.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_max_payload_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_read_payload_free.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_read_payload_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_read_task_function.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_read_thread_entry.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_reception_start.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_stream_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_tasks_run.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_transmission_start.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_uninitialize.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_write_payload_commit.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_write_payload_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_write_task_function.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/src/ux_device_class_video_write_thread_entry.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_callback.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_endpoint_create.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_endpoint_destroy.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_endpoint_reset.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_endpoint_stall.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_endpoint_status.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_frame_number_get.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_function.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_initialize.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_initialize_complete.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_interrupt_handler.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_transfer_abort.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_transfer_request.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_transfer_run.c" },
+
+        { "path": "../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers/ux_dcd_stm32_uninitialize.c" },
+
+        { "path": "../../Src/app.c" },
+
+        { "path": "../../Src/app_cam.c" },
+
+        { "path": "../../Src/app_cvt.c" },
+
+        { "path": "../../Src/app_fuseprogramming.c" },
+
+        { "path": "../../Src/app_jpg.c" },
+
+        { "path": "../../Src/freertos_bsp.c" },
+
+        { "path": "../../Src/main.c" },
+
+        { "path": "../../Src/stm32n6xx_it.c" }
+      ],
+      "tools": [
+            {
+              "type": "c_assembler",
+              "options": {
+                      "option.debuglevel": "-g3"                   
+,                      "option.definedsymbols": "-DSTM32N657xx, -DUSE_FULL_ASSERT, -DUSE_FULL_LL_DRIVER, -DVECT_TAB_SRAM, -DUSE_IMX335_SENSOR, -DUSE_VD66GY_SENSOR, -DUSE_VD55G1_SENSOR, -DUSE_VD1943_SENSOR, -DCAMERA_SELFY=1, -DSTM32N6570_NUCLEO_REV, -DTX_MAX_PARALLEL_NETWORKS=1, -DFEAT_FREERTOS, -DUVC_LIB_USE_USBX, -DUX_INCLUDE_USER_DEFINE_FILE, -DUSBL_PACKET_PER_MICRO_FRAME=3, -DUX_STANDALONE, -DUVCL_USBX_USE_FREERTOS, -DUVC_LIB_USE_DMA"                   
+,                      "option.includepaths": "-I../../../Inc, -I../../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc, -I../../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc/Legacy, -I../../../STM32Cube_FW_N6/Drivers/CMSIS/Device/ST/STM32N6xx/Include, -I../../../STM32Cube_FW_N6/Drivers/CMSIS/Include, -I../../../STM32Cube_FW_N6/Drivers/CMSIS/DSP/Include, -I../../../STM32Cube_FW_N6/Drivers/BSP/Components/Common, -I../../../STM32Cube_FW_N6/Drivers/BSP/STM32N6xx_Nucleo, -I../../../STM32Cube_FW_N6/Drivers/BSP/Components/aps256xx, -I../../../Lib/Camera_Middleware, -I../../../Lib/Camera_Middleware/sensors, -I../../../Lib/Camera_Middleware/sensors/imx335, -I../../../Lib/Camera_Middleware/sensors/vd55g1, -I../../../Lib/Camera_Middleware/sensors/vd6g, -I../../../Lib/Camera_Middleware/sensors/vd1943, -I../../../Lib/Camera_Middleware/ISP_Library/isp/Inc, -I../../../Lib/FreeRTOS/Source/include, -I../../../Lib/FreeRTOS/Source/portable/GCC/ARM_CM55_NTZ/non_secure, -I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/inc, -I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/ports/generic/inc, -I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/inc, -I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers, -I../../../Lib/uvcl/Inc/usbx, -I../../../Lib/uvcl/Src/usbx, -I../../../Lib/uvcl/Inc, -I../../../Lib/uvcl/Src"                   
+,                      "option.preprocessassembler": "-x assembler-with-cpp"                   
+              },
+
+              
+              "flags": [
+                  "-mfpu=fpv5-d16",
+
+                  "-mfloat-abi=hard",
+
+                  "-mthumb",
+
+                  "--specs=nano.specs",
+
+                  "-mcpu=cortex-m55",
+
+                  "-g3",
+
+                  "-DSTM32N657xx",
+
+                  "-DUSE_FULL_ASSERT",
+
+                  "-DUSE_FULL_LL_DRIVER",
+
+                  "-DVECT_TAB_SRAM",
+
+                  "-DUSE_IMX335_SENSOR",
+
+                  "-DUSE_VD66GY_SENSOR",
+
+                  "-DUSE_VD55G1_SENSOR",
+
+                  "-DUSE_VD1943_SENSOR",
+
+                  "-DCAMERA_SELFY=1",
+
+                  "-DSTM32N6570_NUCLEO_REV",
+
+                  "-DTX_MAX_PARALLEL_NETWORKS=1",
+
+                  "-DFEAT_FREERTOS",
+
+                  "-DUVC_LIB_USE_USBX",
+
+                  "-DUX_INCLUDE_USER_DEFINE_FILE",
+
+                  "-DUSBL_PACKET_PER_MICRO_FRAME=3",
+
+                  "-DUX_STANDALONE",
+
+                  "-DUVCL_USBX_USE_FREERTOS",
+
+                  "-DUVC_LIB_USE_DMA",
+
+                  "-I../../../Inc",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc/Legacy",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/CMSIS/Device/ST/STM32N6xx/Include",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/CMSIS/Include",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/CMSIS/DSP/Include",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/BSP/Components/Common",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/BSP/STM32N6xx_Nucleo",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/BSP/Components/aps256xx",
+
+                  "-I../../../Lib/Camera_Middleware",
+
+                  "-I../../../Lib/Camera_Middleware/sensors",
+
+                  "-I../../../Lib/Camera_Middleware/sensors/imx335",
+
+                  "-I../../../Lib/Camera_Middleware/sensors/vd55g1",
+
+                  "-I../../../Lib/Camera_Middleware/sensors/vd6g",
+
+                  "-I../../../Lib/Camera_Middleware/sensors/vd1943",
+
+                  "-I../../../Lib/Camera_Middleware/ISP_Library/isp/Inc",
+
+                  "-I../../../Lib/FreeRTOS/Source/include",
+
+                  "-I../../../Lib/FreeRTOS/Source/portable/GCC/ARM_CM55_NTZ/non_secure",
+
+                  "-I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/inc",
+
+                  "-I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/ports/generic/inc",
+
+                  "-I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/inc",
+
+                  "-I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers",
+
+                  "-I../../../Lib/uvcl/Inc/usbx",
+
+                  "-I../../../Lib/uvcl/Src/usbx",
+
+                  "-I../../../Lib/uvcl/Inc",
+
+                  "-I../../../Lib/uvcl/Src",
+
+                  "-x",
+
+                  "assembler-with-cpp"
+              ]
+            }
+,            {
+              "type": "c_compiler",
+              "options": {
+                      "option.languagestandard": "-std=gnu11"                   
+,                      "option.debuglevel": "-g3"                   
+,                      "option.definedsymbols": "-DSTM32N657xx, -DUSE_FULL_ASSERT, -DUSE_FULL_LL_DRIVER, -DVECT_TAB_SRAM, -DUSE_IMX335_SENSOR, -DUSE_VD66GY_SENSOR, -DUSE_VD55G1_SENSOR, -DUSE_VD1943_SENSOR, -DCAMERA_SELFY=1, -DSTM32N6570_NUCLEO_REV, -DTX_MAX_PARALLEL_NETWORKS=1, -DFEAT_FREERTOS, -DUVC_LIB_USE_USBX, -DUX_INCLUDE_USER_DEFINE_FILE, -DUSBL_PACKET_PER_MICRO_FRAME=3, -DUX_STANDALONE, -DUVCL_USBX_USE_FREERTOS, -DUVC_LIB_USE_DMA"                   
+,                      "option.includepaths": "-I../../../Inc, -I../../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc, -I../../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc/Legacy, -I../../../STM32Cube_FW_N6/Drivers/CMSIS/Device/ST/STM32N6xx/Include, -I../../../STM32Cube_FW_N6/Drivers/CMSIS/Include, -I../../../STM32Cube_FW_N6/Drivers/CMSIS/DSP/Include, -I../../../STM32Cube_FW_N6/Drivers/BSP/Components/Common, -I../../../STM32Cube_FW_N6/Drivers/BSP/STM32N6xx_Nucleo, -I../../../STM32Cube_FW_N6/Drivers/BSP/Components/aps256xx, -I../../../Lib/Camera_Middleware, -I../../../Lib/Camera_Middleware/sensors, -I../../../Lib/Camera_Middleware/sensors/imx335, -I../../../Lib/Camera_Middleware/sensors/vd55g1, -I../../../Lib/Camera_Middleware/sensors/vd6g, -I../../../Lib/Camera_Middleware/sensors/vd1943, -I../../../Lib/Camera_Middleware/ISP_Library/isp/Inc, -I../../../Lib/FreeRTOS/Source/include, -I../../../Lib/FreeRTOS/Source/portable/GCC/ARM_CM55_NTZ/non_secure, -I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/inc, -I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/ports/generic/inc, -I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/inc, -I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers, -I../../../Lib/uvcl/Inc/usbx, -I../../../Lib/uvcl/Src/usbx, -I../../../Lib/uvcl/Inc, -I../../../Lib/uvcl/Src"                   
+,                      "option.optimization.level": "-Os"                   
+,                      "option.ffunction": "-ffunction-sections"                   
+,                      "option.fdata": "-fdata-sections"                   
+,                      "option.warnings.all": "-Wall"                   
+,                      "option.otherflags": "[]"                   
+,                      "option.fstackusage": "-fstack-usage"                   
+,                      "option.cyclomaticcomplexity": "-fcyclomatic-complexity"                   
+,                      "option.mcmse": "-mcmse"                   
+              },
+
+              
+              "flags": [
+                  "-mfpu=fpv5-d16",
+
+                  "-mfloat-abi=hard",
+
+                  "-mthumb",
+
+                  "--specs=nano.specs",
+
+                  "-mcpu=cortex-m55",
+
+                  "-std=gnu11",
+
+                  "-g3",
+
+                  "-DSTM32N657xx",
+
+                  "-DUSE_FULL_ASSERT",
+
+                  "-DUSE_FULL_LL_DRIVER",
+
+                  "-DVECT_TAB_SRAM",
+
+                  "-DUSE_IMX335_SENSOR",
+
+                  "-DUSE_VD66GY_SENSOR",
+
+                  "-DUSE_VD55G1_SENSOR",
+
+                  "-DUSE_VD1943_SENSOR",
+
+                  "-DCAMERA_SELFY=1",
+
+                  "-DSTM32N6570_NUCLEO_REV",
+
+                  "-DTX_MAX_PARALLEL_NETWORKS=1",
+
+                  "-DFEAT_FREERTOS",
+
+                  "-DUVC_LIB_USE_USBX",
+
+                  "-DUX_INCLUDE_USER_DEFINE_FILE",
+
+                  "-DUSBL_PACKET_PER_MICRO_FRAME=3",
+
+                  "-DUX_STANDALONE",
+
+                  "-DUVCL_USBX_USE_FREERTOS",
+
+                  "-DUVC_LIB_USE_DMA",
+
+                  "-I../../../Inc",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc/Legacy",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/CMSIS/Device/ST/STM32N6xx/Include",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/CMSIS/Include",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/CMSIS/DSP/Include",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/BSP/Components/Common",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/BSP/STM32N6xx_Nucleo",
+
+                  "-I../../../STM32Cube_FW_N6/Drivers/BSP/Components/aps256xx",
+
+                  "-I../../../Lib/Camera_Middleware",
+
+                  "-I../../../Lib/Camera_Middleware/sensors",
+
+                  "-I../../../Lib/Camera_Middleware/sensors/imx335",
+
+                  "-I../../../Lib/Camera_Middleware/sensors/vd55g1",
+
+                  "-I../../../Lib/Camera_Middleware/sensors/vd6g",
+
+                  "-I../../../Lib/Camera_Middleware/sensors/vd1943",
+
+                  "-I../../../Lib/Camera_Middleware/ISP_Library/isp/Inc",
+
+                  "-I../../../Lib/FreeRTOS/Source/include",
+
+                  "-I../../../Lib/FreeRTOS/Source/portable/GCC/ARM_CM55_NTZ/non_secure",
+
+                  "-I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/core/inc",
+
+                  "-I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/ports/generic/inc",
+
+                  "-I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_device_classes/inc",
+
+                  "-I../../../STM32Cube_FW_N6/Middlewares/ST/usbx/common/usbx_stm32_device_controllers",
+
+                  "-I../../../Lib/uvcl/Inc/usbx",
+
+                  "-I../../../Lib/uvcl/Src/usbx",
+
+                  "-I../../../Lib/uvcl/Inc",
+
+                  "-I../../../Lib/uvcl/Src",
+
+                  "-Os",
+
+                  "-ffunction-sections",
+
+                  "-fdata-sections",
+
+                  "-Wall",
+
+                  "-fstack-usage",
+
+                  "-fcyclomatic-complexity",
+
+                  "-mcmse"
+              ]
+            }
+,            {
+              "type": "cpp_compiler",
+              "options": {
+                      "option.languagestandard": "-std=gnu++14"                   
+,                      "option.debuglevel": "-g3"                   
+,                      "option.optimization.level": "-O0"                   
+,                      "option.ffunction": "-ffunction-sections"                   
+,                      "option.fdata": "-fdata-sections"                   
+,                      "option.noexceptions": "-fno-exceptions"                   
+,                      "option.nortti": "-fno-rtti"                   
+,                      "option.nousecxaatexit": "-fno-use-cxa-atexit"                   
+,                      "option.warnings.all": "-Wall"                   
+,                      "option.fstackusage": "-fstack-usage"                   
+,                      "option.cyclomaticcomplexity": "-fcyclomatic-complexity"                   
+,                      "option.optimization.level": "-Os"                   
+              },
+
+              
+              "flags": [
+                  "-mfpu=fpv5-d16",
+
+                  "-mfloat-abi=hard",
+
+                  "-mthumb",
+
+                  "--specs=nano.specs",
+
+                  "-mcpu=cortex-m55",
+
+                  "-std=gnu++14",
+
+                  "-g3",
+
+                  "-O0",
+
+                  "-ffunction-sections",
+
+                  "-fdata-sections",
+
+                  "-fno-exceptions",
+
+                  "-fno-rtti",
+
+                  "-fno-use-cxa-atexit",
+
+                  "-Wall",
+
+                  "-fstack-usage",
+
+                  "-fcyclomatic-complexity",
+
+                  "-Os"
+              ]
+            }
+,            {
+              "type": "c_linker",
+              "options": {
+                      "option.script": "-T\"../../../Gcc/STM32N657xx_nucleo.ld\""                   
+,                      "option.systemcalls": "--specs=nosys.specs"                   
+,                      "option.map": "-Wl,-Map=\"x-cube-n6-camera-capture-nucleo.map\""                   
+,                      "option.gcsections": "-Wl,--gc-sections"                   
+,                      "option.static": "-static"                   
+,                      "option.generate.secure.lib": "-Wl,--cmse-implib -Wl,--out-implib=./secure_nsclib.o"                   
+,                      "option.libraries": "-lc, -lm, -lnosys"                   
+,                      "option.libmath": "-Wl,--start-group -lc -lm -Wl,--end-group"                   
+,                      "option.otherflags": "[-u _printf_float -Wl,--no-warn-rwx-segments]"                   
+              },
+
+              
+              "flags": [
+                  "-mfpu=fpv5-d16",
+
+                  "-mfloat-abi=hard",
+
+                  "-mthumb",
+
+                  "--specs=nano.specs",
+
+                  "-mcpu=cortex-m55",
+
+                  "-T\"../../../Gcc/STM32N657xx_nucleo.ld\"",
+
+                  "--specs=nosys.specs",
+
+                  "-Wl,-Map=\"x-cube-n6-camera-capture-nucleo.map\"",
+
+                  "-Wl,--gc-sections",
+
+                  "-static",
+
+                  "-Wl,--cmse-implib",
+
+                  "-Wl,--out-implib=./secure_nsclib.o",
+
+                  "-lc",
+
+                  "-lm",
+
+                  "-lnosys"
+              ]
+            }
+,            {
+              "type": "cpp_linker",
+              "options": {
+                      "option.script": "-T\"\""                   
+,                      "option.systemcalls": "--specs=nosys.specs"                   
+,                      "option.map": "-Wl,-Map=\"x-cube-n6-camera-capture-nucleo.map\""                   
+,                      "option.gcsections": "-Wl,--gc-sections"                   
+,                      "option.static": "-static"                   
+,                      "option.generate.secure.lib": "-Wl,--cmse-implib -Wl,--out-implib=./secure_nsclib.o"                   
+,                      "option.libmath": "-Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group"                   
+              },
+
+              
+              "flags": [
+                  "-mfpu=fpv5-d16",
+
+                  "-mfloat-abi=hard",
+
+                  "-mthumb",
+
+                  "--specs=nano.specs",
+
+                  "-mcpu=cortex-m55",
+
+                  "-T\"\"",
+
+                  "--specs=nosys.specs",
+
+                  "-Wl,-Map=\"x-cube-n6-camera-capture-nucleo.map\"",
+
+                  "-Wl,--gc-sections",
+
+                  "-static",
+
+                  "-Wl,--cmse-implib",
+
+                  "-Wl,--out-implib=./secure_nsclib.o"
+              ]
+            }
+,            {
+              "type": "c_archiver",
+              "options": {
+                      "option.replace": "-r"                   
+              },
+
+              
+              "flags": [
+                  "-mfpu=fpv5-d16",
+
+                  "-mfloat-abi=hard",
+
+                  "-mthumb",
+
+                  "--specs=nano.specs",
+
+                  "-mcpu=cortex-m55",
+
+                  "-r"
+              ]
+            }
+      ]
+    }
+  ]
+}

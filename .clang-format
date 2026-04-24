@@ -1,0 +1,116 @@
+# .clang-format — stile Allman con 4 spazi
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++17  # oppure c++20, Latest può dare problemi su clang-format vecchi
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 8
+ColumnLimit: 150
+
+# Parentesi graffe a capo (Allman)
+BreakBeforeBraces: Custom  # Custom invece di Allman per più controllo
+BraceWrapping:
+  AfterFunction:         true
+  AfterClass:            true
+  AfterStruct:           true
+  AfterEnum:             true
+  AfterNamespace:        true
+  AfterControlStatement: Always
+  AfterExternBlock:      true   # <-- AGGIUNTO
+  BeforeElse:            true
+  BeforeCatch:           true
+  BeforeWhile:           false  # <-- AGGIUNTO (do { } while a capo)
+  SplitEmptyFunction:    false
+  SplitEmptyRecord:      false
+  SplitEmptyNamespace:   false
+
+# Parametri "a scaletta", niente bin packing
+BinPackArguments: false
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: false  # <-- AGGIUNTO
+AllowAllArgumentsOnNextLine: false                # <-- AGGIUNTO
+AlignAfterOpenBracket: Align
+PenaltyBreakBeforeFirstCallParameter: 50
+PenaltyBreakString: 1000
+
+# Allineamenti utili
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+AlignConsecutiveDeclarations:
+  Enabled: false
+  AcrossEmptyLines: false
+  AcrossComments: true
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+AlignEscapedNewlines: Right
+AlignOperands: Align  # invece di true (deprecato)
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 1
+
+# Direttive preprocessore
+IndentPPDirectives: None
+
+# Spaziature
+SpaceAfterCStyleCast: true
+SpacesInParentheses: false
+SpacesInAngles: Never  # invece di false
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyBlock: false
+SpaceBeforeAssignmentOperators: true  # <-- AGGIUNTO
+
+# Switch/case
+IndentCaseLabels: true
+AllowShortCaseLabelsOnASingleLine: false
+IndentCaseBlocks: false  # <-- AGGIUNTO (case: { non indenta extra)
+
+# Funzioni e blocchi brevi
+AllowShortFunctionsOnASingleLine: Empty  # <-- AGGIUNTO
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never  # <-- AGGIUNTO
+
+# Puntatori/riferimenti
+PointerAlignment: Left
+DerivePointerAlignment: false
+ReferenceAlignment: Left
+
+# Namespace / include
+NamespaceIndentation: All
+CompactNamespaces: false  # <-- AGGIUNTO
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<.*\.h>$'        # <stdio.h>, <stdlib.h>
+    Priority: 1
+  - Regex: '^<.*>$'           # <vector>, <string>
+    Priority: 2
+  - Regex: '^".*\.h(pp)?"$'   # "myheader.h", "myclass.hpp"
+    Priority: 3
+  - Regex: '.*'               # tutto il resto
+    Priority: 4
+
+# Commenti
+ReflowComments: true
+SpacesBeforeTrailingComments: 2  # <-- AGGIUNTO
+PenaltyExcessCharacter: 50
+
+# Break per migliorare leggibilità
+AlwaysBreakAfterReturnType: None
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakStringLiterals: true
+
+# Empty lines
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
