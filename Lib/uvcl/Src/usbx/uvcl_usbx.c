@@ -65,22 +65,22 @@ static UVCL_Ctx_t *UVCL_usbx_get_ctx_from_stream(struct UX_DEVICE_CLASS_VIDEO_ST
   return UVCL_usbx_get_ctx_from_video_instance(stream->ux_device_class_video_stream_video);
 }
 
-static void UVCL_SendPacket(UVCL_Ctx_t *p_ctx, UX_DEVICE_CLASS_VIDEO_STREAM *stream, int len)
+static int UVCL_SendPacket(UVCL_Ctx_t *p_ctx, UX_DEVICE_CLASS_VIDEO_STREAM *stream, int len, const uint8_t *payload)
 {
   ULONG buffer_length;
   UCHAR *buffer;
   int ret;
 
   ret = ux_device_class_video_write_payload_get(stream, &buffer, &buffer_length);
-  assert(ret == UX_SUCCESS);
-  assert(buffer_length >= len);
+  if (ret != UX_SUCCESS || buffer_length < (ULONG)len) return -1;
 
-  memcpy(buffer, p_ctx->packet, len);
+  memcpy(buffer, p_ctx->packet, 2);
+  if (len > 2) memcpy(buffer + 2, payload, (size_t)len - 2U);
   ret = ux_device_class_video_write_payload_commit(stream, len);
-  assert(ret == UX_SUCCESS);
+  return ret == UX_SUCCESS ? 0 : -1;
 }
 
-static void UVCL_DataIn(struct UX_DEVICE_CLASS_VIDEO_STREAM_STRUCT *stream)
+static void UVCL_DataInLocked(struct UX_DEVICE_CLASS_VIDEO_STREAM_STRUCT *stream)
 {
   int packet_size = is_hs() ? UVC_ISO_HS_MPS : UVC_ISO_FS_MPS;
   UVCL_Ctx_t *p_ctx = UVCL_usbx_get_ctx_from_stream(stream);
@@ -97,7 +97,8 @@ static void UVCL_DataIn(struct UX_DEVICE_CLASS_VIDEO_STREAM_STRUCT *stream)
     p_ctx->on_fly_ctx = UVCL_StartNewFrameTransmission(p_ctx, packet_size);
 
   if (!p_ctx->on_fly_ctx) {
-    UVCL_SendPacket(p_ctx, stream, 2);
+    p_ctx->packet[1] &= ~2U;
+    UVCL_SendPacket(p_ctx, stream, 2, NULL);
     return ;
   }
 
@@ -105,49 +106,55 @@ static void UVCL_DataIn(struct UX_DEVICE_CLASS_VIDEO_STREAM_STRUCT *stream)
   on_fly_ctx = p_ctx->on_fly_ctx;
   //printf("S %d\n", on_fly_ctx->packet_index);
   len = on_fly_ctx->packet_index == (on_fly_ctx->packet_nb - 1) ? on_fly_ctx->last_packet_size + 2 : packet_size;
-  memcpy(&p_ctx->packet[2], on_fly_ctx->cursor, len - 2);
-  UVCL_SendPacket(p_ctx, stream, len);
+  /* EOF marks the final payload; only advance after USBX accepts the copy.
+   * The frame remains owned until all valid bytes have been copied. */
+  p_ctx->packet[1] = (p_ctx->packet[1] & ~2U) |
+                    (on_fly_ctx->packet_index + 1 == on_fly_ctx->packet_nb ? 2U : 0U);
+  if (UVCL_SendPacket(p_ctx, stream, len, on_fly_ctx->cursor) == 0)
+    UVCL_UpdateOnFlyCtx(p_ctx, len);
+}
 
-  UVCL_UpdateOnFlyCtx(p_ctx, len);
+/* USB reset can invoke disconnect callbacks from an ISR. Serialize the
+ * bounded payload copy with that reset so a detached frame is never read. */
+static void UVCL_DataIn(struct UX_DEVICE_CLASS_VIDEO_STREAM_STRUCT *stream)
+{
+  const uint32_t flags = UVCL_Lock();
+  UVCL_DataInLocked(stream);
+  UVCL_Unlock(flags);
 }
 
 static void UVCL_StopStreaming(struct UX_DEVICE_CLASS_VIDEO_STREAM_STRUCT *stream)
 {
   UVCL_Ctx_t *p_ctx = UVCL_usbx_get_ctx_from_stream(stream);
 
-  p_ctx->state = UVCL_STATUS_STOP;
-  if (p_ctx->on_fly_ctx)
-    UVCL_AbortOnFlyCtx(p_ctx);
-
-  /* Also release queue frame */
-  if (p_ctx->p_frame) {
-     p_ctx->cbs->frame_release(p_ctx->cbs, p_ctx->p_frame);
-     p_ctx->p_frame = NULL;
-  }
-
-  if (p_ctx->cbs->streaming_inactive)
-    p_ctx->cbs->streaming_inactive(p_ctx->cbs);
+  UVCL_StopContext(p_ctx);
 }
 
-static void UVCL_StartStreaming(struct UX_DEVICE_CLASS_VIDEO_STREAM_STRUCT *stream)
+static int UVCL_StartStreaming(struct UX_DEVICE_CLASS_VIDEO_STREAM_STRUCT *stream)
 {
   UVCL_Ctx_t *p_ctx = UVCL_usbx_get_ctx_from_stream(stream);
   UVCL_StreamConf_t stream_param;
   int i;
 
-  UVCL_SetupStreamingStream(p_ctx, &stream_param);
-  if (p_ctx->cbs->streaming_active)
-    p_ctx->cbs->streaming_active(p_ctx->cbs, stream_param);
+  if (UVCL_SetupStreamingStream(p_ctx, &stream_param))
+    return -1;
+  const uint32_t flags = UVCL_Lock();
+  if (p_ctx->state == UVCL_STATUS_STREAMING)
+    UVCL_StopContext(p_ctx);
 
   p_ctx->frame_period_in_ms = 1000 / stream_param.fps;
   p_ctx->packet[0] = 2;
-  p_ctx->packet[1] = 0;
+  p_ctx->packet[1] = 0x80U; /* UVC End-of-Header is always present. */
   p_ctx->frame_start = HAL_GetTick() - p_ctx->frame_period_in_ms;
   p_ctx->is_starting = 1;
   p_ctx->state = UVCL_STATUS_STREAMING;
+  if (p_ctx->cbs->streaming_active)
+    p_ctx->cbs->streaming_active(p_ctx->cbs, stream_param);
 
   for (i = 0; i < p_ctx->buffer_nb; i++)
     UVCL_DataIn(stream);
+  UVCL_Unlock(flags);
+  return 0;
 }
 
 static void UVCL_stream_change(struct UX_DEVICE_CLASS_VIDEO_STREAM_STRUCT *stream, ULONG alternate_setting)
@@ -159,10 +166,13 @@ static void UVCL_stream_change(struct UX_DEVICE_CLASS_VIDEO_STREAM_STRUCT *strea
     return ;
   }
 
-  UVCL_StartStreaming(stream);
+  if (UVCL_StartStreaming(stream)) {
+    UVCL_StopStreaming(stream);
+    return;
+  }
 
   ret = ux_device_class_video_transmission_start(stream);
-  assert(ret == UX_SUCCESS);
+  if (ret != UX_SUCCESS) UVCL_StopStreaming(stream);
 }
 
 static int UVCL_usbd_stop_streaming(void *ctx)
@@ -242,7 +252,10 @@ static VOID UVCL_instance_activate(VOID *video_instance)
 
 static VOID UVCL_instance_deactivate(VOID *video_instance)
 {
-  ;
+  /* Disconnect must release queued/active frames just like alternate zero.
+   * This callback may also arrive from a reset ISR; application callbacks
+   * therefore perform only bounded ownership updates and notifications. */
+  UVCL_StopContext(UVCL_usbx_get_ctx_from_video_instance(video_instance));
 }
 
 static int UVCL_usbx_extract_string(uint8_t langid[2], int index, uint8_t *string_desc, uint8_t *p_dst, int dst_len)

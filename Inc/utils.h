@@ -20,6 +20,7 @@
 #define UTILS
 
 #define ALIGN_32 __attribute__ ((aligned (32)))
+#define IN_DMA_MEMORY __attribute__ ((section (".dma_bss")))
 #define IN_PSRAM __attribute__ ((section (".psram_bss")))
 #define UNCACHED __attribute__ ((section (".uncached_bss")))
 #define WEAK __weak

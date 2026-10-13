@@ -22,6 +22,7 @@
 
 #include "cmw_camera.h"
 #include "uvcl.h"
+#include "app_fault.h"
 
 /**
   * @brief   This function handles NMI exception.
@@ -30,6 +31,12 @@
   */
 void NMI_Handler(void)
 {
+  APP_FATAL("Non-maskable interrupt");
+}
+
+void HardFault_Handler(void)
+{
+  APP_FATAL("Hard fault");
 }
 
 /**
@@ -39,10 +46,7 @@ void NMI_Handler(void)
   */
 void MemManage_Handler(void)
 {
-  /* Go to infinite loop when Memory Manage exception occurs */
-  while (1)
-  {
-  }
+  APP_FATAL("Memory protection fault");
 }
 
 /**
@@ -52,10 +56,7 @@ void MemManage_Handler(void)
   */
 void BusFault_Handler(void)
 {
-  /* Go to infinite loop when Bus Fault exception occurs */
-  while (1)
-  {
-  }
+  APP_FATAL("Bus fault");
 }
 
 /**
@@ -65,10 +66,7 @@ void BusFault_Handler(void)
   */
 void SecureFault_Handler(void)
 {
-  /* Go to infinite loop when Secure Fault exception occurs */
-  while (1)
-  {
-  }
+  APP_FATAL("Security fault");
 }
 
 /**
@@ -78,9 +76,7 @@ void SecureFault_Handler(void)
   */
 void DebugMon_Handler(void)
 {
-  while (1)
-  {
-  }
+  APP_FATAL("Debug monitor exception");
 }
 
 /******************************************************************************/

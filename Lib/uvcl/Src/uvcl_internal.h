@@ -173,6 +173,20 @@ void UVCL_UpdateOnFlyCtx(UVCL_Ctx_t *p_ctx, int len);
 void UVCL_AbortOnFlyCtx(UVCL_Ctx_t *p_ctx);
 int UVCL_handle_setup_request(UVCL_Ctx_t *p_ctx, UVCL_SetupReq_t *req);
 uint32_t UVCL_ComputedwMaxVideoFrameSize(UVCL_Ctx_t *ctx, int format_idx, int frame_idx);
-void UVCL_SetupStreamingStream(UVCL_Ctx_t *ctx, UVCL_StreamConf_t *stream);
+int UVCL_SetupStreamingStream(UVCL_Ctx_t *ctx, UVCL_StreamConf_t *stream);
+
+/* These critical sections protect only publication/detachment metadata. They
+ * work in both task and USB reset ISR context and preserve nested PRIMASK. */
+static inline uint32_t UVCL_Lock(void) {
+  uint32_t flags = __get_PRIMASK();
+  __disable_irq();
+  __DMB();
+  return flags;
+}
+static inline void UVCL_Unlock(uint32_t flags) {
+  __DMB();
+  __set_PRIMASK(flags);
+}
+void UVCL_StopContext(UVCL_Ctx_t *ctx);
 
 #endif

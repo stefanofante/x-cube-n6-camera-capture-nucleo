@@ -27,7 +27,7 @@ extern "C" {
 /** @defgroup EXTMEN_CONF
   * @{
   */
- 
+
 /*
   @brief management of the driver layer enable
 */
@@ -69,15 +69,17 @@ enum {
   * @}
   */
 
+#include "board_memory.h"
+
 #define EXTMEM_LRUN_DESTINATION_INTERNAL
-#define EXTMEM_LRUN_DESTINATION_ADDRESS  0x34000000
+#define EXTMEM_LRUN_DESTINATION_ADDRESS  BOARD_APP_IMAGE_BASE
 
 
 #define EXTMEM_LRUN_SOURCE EXTMEMORY_1
 #define EXTMEM_LRUN_SOURCE_ADDRESS 0x00100000
-#define EXTMEM_LRUN_SOURCE_SIZE 0x00010000
+#define EXTMEM_LRUN_SOURCE_SIZE BOARD_APP_IMAGE_CAPACITY
 
-#define EXTMEM_HEADER_OFFSET 0x400
+#define EXTMEM_HEADER_OFFSET BOARD_IMAGE_HEADER_SIZE
 
 /* Exported configuration --------------------------------------------------------*/
 /** @defgroup EXTMEM_CONF_Exported_configuration EXTMEM_CONF exported configuration definition

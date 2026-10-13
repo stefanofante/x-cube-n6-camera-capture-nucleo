@@ -50,6 +50,7 @@
 /* Ensure definitions are only used by the compiler, and not by the assembler. */
 #if defined(__ICCARM__) || defined(__ARMCC_VERSION) || defined(__GNUC__)
 #include <assert.h>
+#include "app_fault.h"
 #include <stdint.h>
 extern uint32_t SystemCoreClock;
 void TIM4_Config(void);
@@ -74,7 +75,7 @@ uint32_t TIM4_Get_Value(void);
 #define configUSE_TICK_HOOK                      0
 #define configCPU_CLOCK_HZ                       ( SystemCoreClock )
 #define configTICK_RATE_HZ                       ((TickType_t)1000)
-#define configMAX_PRIORITIES                     ( 56 )
+#define configMAX_PRIORITIES                     ( 16 )
 #define configMINIMAL_STACK_SIZE                 ((uint16_t)1024)
 #define configTOTAL_HEAP_SIZE                    ((size_t)10 * 1024)
 #define configSTACK_ALLOCATION_FROM_SEPARATE_HEAP 0
@@ -168,7 +169,8 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
 /* USER CODE BEGIN 1 */
-#define configASSERT( x ) if ((x) == 0) {taskDISABLE_INTERRUPTS(); assert(0);}
+#define configASSERT(x) APP_REQUIRE(x)
+#define configCHECK_FOR_STACK_OVERFLOW 2
 /* USER CODE END 1 */
 
 //#define SysTick_Handler xPortSysTickHandler

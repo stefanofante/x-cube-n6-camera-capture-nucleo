@@ -33,8 +33,10 @@ static StaticSemaphore_t libc_lock_buffer;
 
 void freertos_libc_init()
 {
-  libc_lock = xSemaphoreCreateMutexStatic(&libc_lock_buffer);
-  assert(libc_lock);
+  /* newlib may acquire its allocator lock recursively (for example during
+   * reallocation). A nonrecursive mutex can deadlock the owning task. */
+  libc_lock = xSemaphoreCreateRecursiveMutexStatic(&libc_lock_buffer);
+  APP_REQUIRE(libc_lock);
 
   is_tx_rt_init_done = 1;
 }
@@ -46,11 +48,11 @@ __attribute__((weak)) void __malloc_lock (struct _reent *reent)
   if (!is_tx_rt_init_done)
     return ;
 
-  assert(is_tx_rt_init_done);
-  assert(!IS_IRQ_MODE());
+  APP_REQUIRE(is_tx_rt_init_done);
+  APP_REQUIRE(!IS_IRQ_MODE());
 
-  ret = xSemaphoreTake(libc_lock, portMAX_DELAY);
-  assert(ret == pdTRUE);
+  ret = xSemaphoreTakeRecursive(libc_lock, portMAX_DELAY);
+  APP_REQUIRE(ret == pdTRUE);
 }
 
 __attribute__((weak)) void __malloc_unlock (struct _reent *reent)
@@ -60,9 +62,9 @@ __attribute__((weak)) void __malloc_unlock (struct _reent *reent)
   if (!is_tx_rt_init_done)
     return ;
 
-  assert(is_tx_rt_init_done);
-  assert(!IS_IRQ_MODE());
+  APP_REQUIRE(is_tx_rt_init_done);
+  APP_REQUIRE(!IS_IRQ_MODE());
 
-  ret = xSemaphoreGive(libc_lock);
-  assert(ret == pdTRUE);
+  ret = xSemaphoreGiveRecursive(libc_lock);
+  APP_REQUIRE(ret == pdTRUE);
 }

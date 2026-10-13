@@ -21,9 +21,10 @@
 #include <assert.h>
 
 #include "app.h"
+#include "board_memory.h"
+#include "app_fault.h"
+void CONSOLE_Start(void);
 #include "app_config.h"
-#include "app_fuseprogramming.h"
-#include "npu_cache.h"
 #ifdef STM32N6570_DK_REV
 #include "stm32n6570_discovery.h"
 #include "stm32n6570_discovery_bus.h"
@@ -41,9 +42,13 @@
 #include "stm32n6xx_hal_rif.h"
 #include "task.h"
 
-extern int __uncached_bss_start__;
-extern int __uncached_bss_end__;
+extern uint8_t __uncached_bss_start__;
+extern uint8_t __uncached_bss_end__;
 
+/* CMSIS device definitions confirm the two AXI banks used by the linker.
+ * Do not silently target a smaller part or assume external PSRAM exists. */
+_Static_assert(SRAM1_AXI_SIZE == 1024U * 1024U && SRAM2_AXI_SIZE == 1024U * 1024U,
+               "The firmware requires STM32N657 SRAM1/2");
 UART_HandleTypeDef huart1;
 
 static StaticTask_t main_thread;
@@ -92,7 +97,7 @@ int main(void)
 static void Setup_Mpu()
 {
     MPU_Attributes_InitTypeDef attr;
-    MPU_Region_InitTypeDef region;
+    MPU_Region_InitTypeDef region = {0};
 
     attr.Number     = MPU_ATTRIBUTES_NUMBER0;
     attr.Attributes = MPU_NOT_CACHEABLE;
@@ -104,29 +109,28 @@ static void Setup_Mpu()
     region.LimitAddress     = (uint32_t) &__uncached_bss_end__ - 1;
     region.AttributesIndex  = MPU_ATTRIBUTES_NUMBER0;
     region.AccessPermission = MPU_REGION_ALL_RW;
-    region.DisableExec      = MPU_INSTRUCTION_ACCESS_ENABLE;
-    region.DisablePrivExec  = MPU_PRIV_INSTRUCTION_ACCESS_ENABLE;
+    region.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
+    region.DisablePrivExec  = MPU_PRIV_INSTRUCTION_ACCESS_DISABLE;
     region.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
     HAL_MPU_ConfigRegion(&region);
 
-    /* Mark the whole AXISRAM1_2_P1 region (where `.psram_bss` lives) as
-     * non-cacheable. Both DCMIPP and VENC are bus masters that bypass the
-     * CPU D-cache, so leaving that RAM cacheable produces garbled images
-     * (macroblock-sized artifacts) due to stale cache lines. */
+    /* DMA masters do not snoop the CPU cache. Only the dedicated internal
+     * DMA area is non-cacheable and execute-never; application code and
+     * metadata remain in the separate cacheable APP_RAM region. */
     region.Enable           = MPU_REGION_ENABLE;
     region.Number           = MPU_REGION_NUMBER1;
-    region.BaseAddress      = 0x34000000U;                        /* AXISRAM1_2_P1 base */
-    region.LimitAddress     = 0x34000000U + (1536U * 1024U) - 1U; /* 1.5 MB */
+    region.BaseAddress      = BOARD_DMA_RAM_BASE;
+    region.LimitAddress     = BOARD_DMA_RAM_BASE + BOARD_DMA_RAM_SIZE - 1U;
     region.AttributesIndex  = MPU_ATTRIBUTES_NUMBER0;
     region.AccessPermission = MPU_REGION_ALL_RW;
-    region.DisableExec      = MPU_INSTRUCTION_ACCESS_ENABLE;
-    region.DisablePrivExec  = MPU_PRIV_INSTRUCTION_ACCESS_ENABLE;
+    region.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
+    region.DisablePrivExec  = MPU_PRIV_INSTRUCTION_ACCESS_DISABLE;
     region.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
     HAL_MPU_ConfigRegion(&region);
 
     HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 
-    memset(&__uncached_bss_start__, 0, &__uncached_bss_end__ - &__uncached_bss_start__);
+    memset(&__uncached_bss_start__, 0, (uintptr_t)&__uncached_bss_end__ - (uintptr_t)&__uncached_bss_start__);
 }
 
 static void Security_Config()
@@ -168,9 +172,7 @@ static void IAC_Config(void)
 
 void IAC_IRQHandler(void)
 {
-    while (1)
-    {
-    }
+    APP_FATAL("Illegal peripheral access");
 }
 
 static void SystemClock_Config(void)
@@ -223,8 +225,7 @@ static void SystemClock_Config(void)
 
     if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
     {
-        while (1)
-            ;
+        APP_FATAL("Clock or UART initialization failed");
     }
 
     RCC_ClkInitStruct.ClockType    = (RCC_CLOCKTYPE_CPUCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2 |
@@ -259,8 +260,7 @@ static void SystemClock_Config(void)
 
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct) != HAL_OK)
     {
-        while (1)
-            ;
+        APP_FATAL("Clock or UART initialization failed");
     }
 
     RCC_PeriphCLKInitStruct.PeriphClockSelection = 0;
@@ -275,8 +275,7 @@ static void SystemClock_Config(void)
 
     if (HAL_RCCEx_PeriphCLKConfig(&RCC_PeriphCLKInitStruct) != HAL_OK)
     {
-        while (1)
-            ;
+        APP_FATAL("Clock or UART initialization failed");
     }
 }
 
@@ -305,8 +304,7 @@ static void CONSOLE_Config()
     huart1.Init.OverSampling = UART_OVERSAMPLING_8;
     if (HAL_UART_Init(&huart1) != HAL_OK)
     {
-        while (1)
-            ;
+        APP_FATAL("Clock or UART initialization failed");
     }
 }
 
@@ -315,10 +313,10 @@ static int main_freertos()
     TaskHandle_t hdl;
 
     hdl = xTaskCreateStatic(main_thread_fct, "main", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, main_thread_stack, &main_thread);
-    assert(hdl != NULL);
+    APP_REQUIRE(hdl != NULL);
 
     vTaskStartScheduler();
-    assert(0);
+    APP_FATAL("Scheduler returned");
 
     return -1;
 }
@@ -344,8 +342,9 @@ static void main_thread_fct(void* arg)
     vPortSetupTimerInterrupt();
 
     CONSOLE_Config();
+    CONSOLE_Start();
 
-    Fuse_Programming();
+    /* OTP provisioning is deliberately not part of normal application boot. */
 
     /*** External RAM and NOR Flash *********************************************/
 #ifdef STM32N6570_DK_REV
@@ -356,14 +355,15 @@ static void main_thread_fct(void* arg)
     BSP_XSPI_NOR_Init_t NOR_Init;
     NOR_Init.InterfaceMode = BSP_XSPI_NOR_OPI_MODE;
     NOR_Init.TransferRate  = BSP_XSPI_NOR_DTR_TRANSFER;
-    BSP_XSPI_NOR_Init(0, &NOR_Init);
-    BSP_XSPI_NOR_EnableMemoryMappedMode(0);
+    if (BSP_XSPI_NOR_Init(0, &NOR_Init) != BSP_ERROR_NONE ||
+        BSP_XSPI_NOR_EnableMemoryMappedMode(0) != BSP_ERROR_NONE)
+        APP_FATAL("NOR initialization failed");
 
     ret = BSP_LED_Init(LED_GREEN);
-    assert(ret == BSP_ERROR_NONE);
+    APP_REQUIRE(ret == BSP_ERROR_NONE);
 
     ret = BSP_LED_Init(LED_RED);
-    assert(ret == BSP_ERROR_NONE);
+    APP_REQUIRE(ret == BSP_ERROR_NONE);
 
     /* Set all required IPs as secure privileged */
     Security_Config();
@@ -418,7 +418,7 @@ HAL_StatusTypeDef MX_DCMIPP_ClockConfig(DCMIPP_HandleTypeDef* hdcmipp)
 
 void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
 {
-    assert(hpcd->Instance == USB1_OTG_HS);
+    APP_REQUIRE(hpcd->Instance == USB1_OTG_HS);
 
     __HAL_RCC_PWR_CLK_ENABLE();
 
@@ -426,8 +426,12 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
     HAL_PWREx_EnableVddUSBVMEN();
 
     /* Wait until VDD33USB is ready */
-    while (__HAL_PWR_GET_FLAG(PWR_FLAG_USB33RDY) == 0U)
-        ;
+    const uint32_t usb_start = HAL_GetTick();
+    while (__HAL_PWR_GET_FLAG(PWR_FLAG_USB33RDY) == 0U) {
+        if (HAL_GetTick() - usb_start >= 100U)
+            APP_FATAL("USB supply timeout");
+        HAL_Delay(1);
+    }
 
     /* Enable VDDUSB supply */
     HAL_PWREx_EnableVddUSB();
@@ -459,12 +463,7 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* hpcd)
  */
 void assert_failed(uint8_t* file, uint32_t line)
 {
-    UNUSED(file);
-    UNUSED(line);
-    __BKPT(0);
-    while (1)
-    {
-    }
+    App_Fatal((const char *)file, line, "HAL assertion failed");
 }
 #endif
 

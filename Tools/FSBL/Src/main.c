@@ -109,7 +109,8 @@ int main(void)
   /* Initialise the serial memory */
   MX_EXTMEM_Init();
 
-  BOOT_Application();
+  if (BOOT_Application() != BOOT_OK)
+    Error_Handler();
   /* We should never get here as execution is now from user application */
   /* USER CODE END 2 */
 

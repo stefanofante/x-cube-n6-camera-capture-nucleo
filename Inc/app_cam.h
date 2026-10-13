@@ -20,6 +20,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
   int capture_width;
   int capture_height;
@@ -28,9 +32,13 @@ typedef struct {
   int is_rgb_swap;
 } CAM_conf_t;
 
-void CAM_Init(CAM_conf_t *conf);
-void CAM_CapturePipe_Start(uint8_t *capture_pipe_dst, uint32_t cam_mode);
-void CAM_IspUpdate(void);
-void CAM_Deinit(void);
+int CAM_Init(CAM_conf_t *conf);
+int CAM_CapturePipe_Start(uint8_t *capture_pipe_dst, uint32_t cam_mode);
+int CAM_IspUpdate(void);
+int CAM_Deinit(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

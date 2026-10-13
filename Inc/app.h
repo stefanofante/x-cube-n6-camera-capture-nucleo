@@ -21,6 +21,15 @@
 
 #define USE_DCACHE
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void app_run(void);
+void App_CameraErrorFromISR(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

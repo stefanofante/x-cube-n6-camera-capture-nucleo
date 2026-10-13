@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "extmem.h"
+extern void Error_Handler(void);
 
 /* USER CODE BEGIN Includes */
 
@@ -57,11 +58,13 @@ void MX_EXTMEM_Init(void)
 {
 
   /* USER CODE BEGIN MX_EXTMEM_Init_PreTreatment */
-    
+
   /* USER CODE END MX_EXTMEM_Init_PreTreatment */
 
-  EXTMEM_Init(EXTMEMORY_1, HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_XSPI2));
-//  EXTMEM_Init(EXTMEMORY_2, HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_XSPI1));
+  /* Invalid NOR configuration must stop boot before any mapped-image read.
+   * The Nucleo uses its onboard XSPI2 NOR; no PSRAM instance is initialized. */
+  if (EXTMEM_Init(EXTMEMORY_1, HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_XSPI2)) != EXTMEM_OK)
+    Error_Handler();
 
   /* USER CODE BEGIN MX_EXTMEM_Init_PostTreatment */
 

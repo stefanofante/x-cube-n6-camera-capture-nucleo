@@ -22,6 +22,7 @@
 
 /* Includes */
 #include <sys/stat.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
@@ -180,22 +181,27 @@ caddr_t _sbrk(int incr)
 {
   extern char _end;
   extern char _sstack;
-  static char *heap_end;
-  char *prev_heap_end;
-
-  if (heap_end == 0)
-  {
-    heap_end = &_end;
+  static uintptr_t heap_end;
+  const uintptr_t begin = (uintptr_t)&_end;
+  const uintptr_t limit = (uintptr_t)&_sstack;
+  if (!heap_end) heap_end = begin;
+  const uintptr_t previous = heap_end;
+  /* Check integer distances before forming a new pointer. Handle negative
+   * increments without overflowing when newlib requests INT_MIN. The
+   * recursive allocator lock serializes calls from multiple RTOS tasks. */
+  if (incr >= 0) {
+    if ((uintptr_t)incr > limit - heap_end) {
+      errno = ENOMEM;
+      return (caddr_t)-1;
+    }
+    heap_end += (uintptr_t)incr;
+  } else {
+    const uintptr_t decrease = (uintptr_t)(-(int64_t)incr);
+    if (decrease > heap_end - begin) {
+      errno = ENOMEM;
+      return (caddr_t)-1;
+    }
+    heap_end -= decrease;
   }
-
-  prev_heap_end = heap_end;
-
-  if ((heap_end + incr) > &_sstack)
-  {
-    errno = ENOMEM;
-    return (caddr_t)-1;
-  }
-
-  heap_end += incr;
-  return (caddr_t)prev_heap_end;
+  return (caddr_t)previous;
 }

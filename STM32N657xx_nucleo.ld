@@ -1,11 +1,12 @@
 /* Entry Point */
 ENTRY(Reset_Handler)
 
-/* This is start address of fsbl. Use to be sure application code could be copy without fsbl overlap */
+/* The application copy must end before the running bootloader. NOLOAD DMA
+ * storage can reuse the bootloader RAM after the final jump. */
 _fsbl_start_address = 0x34180000;
 
 /* Highest address of the user mode stack */
-_estack = ORIGIN(AXISRAM2_P2_S) + LENGTH(AXISRAM2_P2_S); /* end of "AXISRAM2_P2_S" Ram type memory */
+_estack = ORIGIN(APP_RAM) + LENGTH(APP_RAM); /* end of "AXISRAM2_P2_S" Ram type memory */
 _sstack = _estack - _Min_Stack_Size;
 
 _Min_Heap_Size = 0x200; /* required amount of heap  */
@@ -14,8 +15,8 @@ _Min_Stack_Size = 0x1000; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  AXISRAM1_2_P1_S (xrw)     : ORIGIN = 0x34000000, LENGTH = 1536K
-  AXISRAM2_P2_S (xrw)       : ORIGIN = 0x34180400, LENGTH =  447K
+  APP_RAM (xrw)             : ORIGIN = 0x34000400, LENGTH = 447K
+  DMA_RAM (rw)              : ORIGIN = 0x34070000, LENGTH = 1536K
   AXI_SRAM_UNCACHED (xrw)   : ORIGIN = 0x341f0000, LENGTH =   64K
 }
 
@@ -28,7 +29,7 @@ SECTIONS
     . = ALIGN(4);
     KEEP(*(.isr_vector)) /* Startup code */
     . = ALIGN(4);
-  } >AXISRAM2_P2_S
+  } >APP_RAM
 
   /* The program code and other data into "RAM" Ram type memory */
   .text :
@@ -48,14 +49,14 @@ SECTIONS
 
     . = ALIGN(4);
     _etext = .;        /* define a global symbols at end of code */
-  } >AXISRAM2_P2_S
+  } >APP_RAM
 
   .gnu.sgstubs :
   {
     . = ALIGN(4);
     *(.gnu.sgstubs*)   /* Secure Gateway stubs */
     . = ALIGN(4);
-  } >AXISRAM2_P2_S
+  } >APP_RAM
 
   /* Constant data into "RAM" Ram type memory */
   .rodata :
@@ -64,13 +65,13 @@ SECTIONS
     *(.rodata)         /* .rodata sections (constants, strings, etc.) */
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
     . = ALIGN(4);
-  } >AXISRAM2_P2_S
+  } >APP_RAM
 
   .ARM.extab   : {
     . = ALIGN(4);
     *(.ARM.extab* .gnu.linkonce.armextab.*)
     . = ALIGN(4);
-  } >AXISRAM2_P2_S
+  } >APP_RAM
 
   .ARM : {
     . = ALIGN(4);
@@ -78,7 +79,7 @@ SECTIONS
     *(.ARM.exidx*)
     __exidx_end = .;
     . = ALIGN(4);
-  } >AXISRAM2_P2_S
+  } >APP_RAM
 
   .preinit_array     :
   {
@@ -87,7 +88,7 @@ SECTIONS
     KEEP (*(.preinit_array*))
     PROVIDE_HIDDEN (__preinit_array_end = .);
     . = ALIGN(4);
-  } >AXISRAM2_P2_S
+  } >APP_RAM
 
   .init_array :
   {
@@ -97,7 +98,7 @@ SECTIONS
     KEEP (*(.init_array*))
     PROVIDE_HIDDEN (__init_array_end = .);
     . = ALIGN(4);
-  } >AXISRAM2_P2_S
+  } >APP_RAM
 
   .fini_array :
   {
@@ -107,7 +108,7 @@ SECTIONS
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
     . = ALIGN(4);
-  } >AXISRAM2_P2_S
+  } >APP_RAM
 
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
@@ -122,9 +123,9 @@ SECTIONS
 
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
-    ASSERT ((_edata < _fsbl_start_address), "Error : Application will erase fsbl");
 
-  } >AXISRAM2_P2_S
+
+  } >APP_RAM
 
   /* Uninitialized data section into "RAM" Ram type memory */
   . = ALIGN(4);
@@ -140,7 +141,10 @@ SECTIONS
     . = ALIGN(4);
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
-  } >AXISRAM2_P2_S
+  } >APP_RAM
+
+  /* Retain a debugger-readable fault record across a software reset. */
+  .noinit (NOLOAD) : { *(.noinit*) } >APP_RAM
 
   /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */
   ._user_heap_stack :
@@ -151,26 +155,30 @@ SECTIONS
     . = . + _Min_Heap_Size;
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
-  } >AXISRAM2_P2_S
+  } >APP_RAM
 
   /* Uncached AXI SRAM */
   .uncached_bss (NOLOAD) :
   {
+    . = ALIGN(32);
     __uncached_bss_start__ = .;
-    . = ALIGN(4);
     *(.uncached_bss)
     *(.uncached_bss*)
-    . = ALIGN(4);
+    . = ALIGN(32);
     __uncached_bss_end__ = .;
   } >AXI_SRAM_UNCACHED
 
-  /* handle as if it was external memory */
-  .psram_section (NOLOAD):
+  /* Internal DMA storage. NOLOAD prevents the signed image from including
+   * these buffers or overwriting the FSBL while it copies the application. */
+  .dma_bss (NOLOAD):
   {
-     . = ALIGN(32);
-    *(.psram_bss)
     . = ALIGN(32);
-  } >AXISRAM1_2_P1_S
+    __dma_bss_start__ = .;
+    *(.dma_bss*)
+    *(.psram_bss*)
+    . = ALIGN(32);
+    __dma_bss_end__ = .;
+  } >DMA_RAM
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :
@@ -182,3 +190,13 @@ SECTIONS
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
 }
+
+/* Absolute, top-level assertions are evaluated against final addresses. */
+ASSERT(ADDR(.isr_vector) == 0x34000400, "Application vector address mismatch")
+ASSERT(ABSOLUTE(_edata) <= 0x34070000, "Application image exceeds load region")
+ASSERT(ABSOLUTE(_end) + _Min_Heap_Size <= _sstack, "Application heap overlaps stack")
+ASSERT(ORIGIN(APP_RAM) + LENGTH(APP_RAM) <= _fsbl_start_address, "Application copy overlaps FSBL")
+ASSERT(SIZEOF(.dma_bss) <= LENGTH(DMA_RAM), "DMA storage exceeds internal SRAM")
+ASSERT(SIZEOF(.uncached_bss) <= LENGTH(AXI_SRAM_UNCACHED), "USB storage exceeds internal SRAM")
+ASSERT(ORIGIN(DMA_RAM) + LENGTH(DMA_RAM) == ORIGIN(AXI_SRAM_UNCACHED), "DMA and USB boundary mismatch")
+ASSERT(ORIGIN(AXI_SRAM_UNCACHED) + LENGTH(AXI_SRAM_UNCACHED) == 0x34200000, "Storage exceeds SRAM1/2")

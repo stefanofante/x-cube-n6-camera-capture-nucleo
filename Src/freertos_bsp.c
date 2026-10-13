@@ -30,15 +30,15 @@ static TIM_HandleTypeDef tim4;
 
 uint32_t HAL_GetTick()
 {
-  return xTaskGetTickCount() * portTICK_PERIOD_MS;
+  return (IS_IRQ_MODE() ? xTaskGetTickCountFromISR() : xTaskGetTickCount()) * portTICK_PERIOD_MS;
 }
 
 void HAL_Delay(uint32_t Delay)
 {
-  if (IS_IRQ_MODE())
-    assert(0);
-
-  vTaskDelay(Delay / portTICK_PERIOD_MS);
+  APP_REQUIRE(!IS_IRQ_MODE());
+  /* Round up nonzero delays so they cannot become zero-tick polling. */
+  if (Delay)
+    vTaskDelay(pdMS_TO_TICKS(Delay) ? pdMS_TO_TICKS(Delay) : 1U);
 }
 
 HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)

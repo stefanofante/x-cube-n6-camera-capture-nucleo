@@ -1,40 +1,22 @@
 {
-    // Task per firmare + programmare l'applicazione STM32N6 su flash Octo-SPI esterna.
-    // Richiede STM32CubeProgrammer installato (default: "C:/Program Files/STMicroelectronics/...").
-    // Gli input "cubeProgBin" / "signingToolBin" consentono l'override a runtime.
-    //
-    // NUCLEO-N657X0-Q: flash esterna onboard = MX25UM51245G (Macronix 512 Mb Octo-SPI).
-    //
-    // Flusso tipico: eseguire in ordine
-    //   1) "N6: Sign App"
-    //   2) "N6: Sign FSBL"          (solo la prima volta o se l'FSBL cambia)
-    //   3) "N6: Program FSBL"       (solo la prima volta)
-    //   4) "N6: Program App"
-    // Oppure "N6: Full Program (FSBL + App)" che li incatena.
-    //
-    // NOTE:
-    //  - Il linker script attuale (STM32N657xx_nucleo.ld) e' SOLO-RAM,
-    //    compatibile con il modello FSBL "Load & Run": l'FSBL copia l'app
-    //    da flash a SRAM al boot.
-    //  - BOOT pin sulla Nucleo-N6 devono essere impostati su "Flash boot".
     "version": "2.0.0",
     "inputs": [
         {
             "id": "cubeProgBin",
             "type": "promptString",
-            "description": "Path di STM32_Programmer_CLI.exe (invio = default installato)",
+            "description": "Path to STM32_Programmer_CLI.exe (default installation path)",
             "default": "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe"
         },
         {
             "id": "signingToolBin",
             "type": "promptString",
-            "description": "Path di STM32_SigningTool_CLI.exe (invio = default installato)",
+            "description": "Path to STM32_SigningTool_CLI.exe (default installation path)",
             "default": "C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/STM32_SigningTool_CLI.exe"
         },
         {
             "id": "externalLoader",
             "type": "pickString",
-            "description": "External Loader (.stldr) per la flash Octo-SPI onboard",
+            "description": "External loader for the onboard Octo-SPI NOR",
             "options": [
                 "MX25UM51245G_STM32N6570-NUCLEO.stldr",
                 "MX66UW1G45G_STM32N6570-DK.stldr"
@@ -44,11 +26,46 @@
         {
             "id": "fsblBin",
             "type": "promptString",
-            "description": "Percorso del binario FSBL gia' compilato (bin prodotto dal sub-progetto Tools/FSBL)",
+            "description": "Path to the FSBL binary built from Tools/FSBL",
             "default": "${workspaceFolder}/Tools/FSBL/build/FSBL.bin"
         }
     ],
     "tasks": [
+        {
+            "label": "N6: Configure App",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--preset",
+                "Debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "N6: Build App",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "--preset",
+                "Debug",
+                "--parallel",
+                "4"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": [
+                "N6: Configure App"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
+        },
         {
             "label": "N6: Configure FSBL",
             "type": "shell",
@@ -61,7 +78,8 @@
                 "-G",
                 "Ninja",
                 "--toolchain",
-                "${workspaceFolder}/cmake/gcc-arm-none-eabi.cmake"
+                "${workspaceFolder}/cmake/gcc-arm-none-eabi.cmake",
+                "-DCMAKE_BUILD_TYPE=Release"
             ],
             "problemMatcher": [],
             "presentation": {
@@ -108,7 +126,10 @@
             "presentation": {
                 "reveal": "always",
                 "panel": "shared"
-            }
+            },
+            "dependsOn": [
+                "N6: Build App"
+            ]
         },
         {
             "label": "N6: Sign FSBL",
@@ -123,13 +144,16 @@
                 "-hv",
                 "2.3",
                 "-o",
-                "${workspaceFolder}/build/Debug/fsbl_signed.bin"
+                "${workspaceFolder}/Tools/FSBL/build/fsbl_signed.bin"
             ],
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
                 "panel": "shared"
-            }
+            },
+            "dependsOn": [
+                "N6: Build FSBL"
+            ]
         },
         {
             "label": "N6: Program FSBL",
@@ -143,7 +167,7 @@
                 "${input:externalLoader}",
                 "-hardRst",
                 "-w",
-                "${workspaceFolder}/build/Debug/fsbl_signed.bin",
+                "${workspaceFolder}/Tools/FSBL/build/fsbl_signed.bin",
                 "0x70000000"
             ],
             "problemMatcher": [],

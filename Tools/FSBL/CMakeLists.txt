@@ -1,30 +1,11 @@
-# ============================================================================
-# FSBL (First Stage Boot Loader) - Load & Run per NUCLEO-N657X0-Q
-# ============================================================================
-# Sotto-progetto CMake autonomo. Tutti i sorgenti sono VENDORED dentro il
-# repository: niente dipendenze da path esterni.
-#
-# Sorgenti:
-#   Tools/FSBL/Src, Tools/FSBL/Inc, Tools/FSBL/Startup     : FSBL application
-#   STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver           : HAL (condiviso con l'app)
-#   STM32Cube_FW_N6/Drivers/CMSIS                          : CMSIS (condiviso)
-#   STM32Cube_FW_N6/Middlewares/ST/STM32_ExtMem_Manager    : ExtMem Manager
-#
-# USO:
-#   cmake -S Tools/FSBL -B Tools/FSBL/build -G Ninja \
-#         --toolchain ../../cmake/gcc-arm-none-eabi.cmake
-#   cmake --build Tools/FSBL/build
-#
-# Output:
-#   Tools/FSBL/build/FSBL.elf
-#   Tools/FSBL/build/FSBL.bin   <-- da firmare con STM32_SigningTool_CLI
-# ============================================================================
-
+# Standalone Load & Run bootloader for NUCLEO-N657X0-Q.
+# HAL, CMSIS and the memory manager are vendored and shared with the app.
+# Configure from the repository root with the explicit Arm GCC toolchain.
 cmake_minimum_required(VERSION 3.20)
 
 project(FSBL C ASM)
 
-# Root del repository (due livelli sopra Tools/FSBL)
+# Repository root, two levels above Tools/FSBL.
 get_filename_component(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 
 set(FSBL_DIR    "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -37,6 +18,8 @@ set(LINKER_SCRIPT "${FSBL_DIR}/STM32N657XX_AXISRAM2_fsbl.ld")
 add_executable(FSBL
     # ---- FSBL application ----
     "${FSBL_DIR}/Src/main.c"
+    "${FSBL_DIR}/Src/boot_image.c"
+    "${FSBL_DIR}/Src/boot_validation.c"
     "${FSBL_DIR}/Src/extmem.c"
     "${FSBL_DIR}/Src/stm32n6xx_hal_msp.c"
     "${FSBL_DIR}/Src/stm32n6xx_it.c"
@@ -50,7 +33,7 @@ add_executable(FSBL
     "${EXTMEM_ROOT}/nor_sfdp/stm32_sfdp_driver.c"
     "${EXTMEM_ROOT}/nor_sfdp/stm32_sfdp_data.c"
     "${EXTMEM_ROOT}/sal/stm32_sal_xspi.c"
-    # ---- HAL modules abilitati in Tools/FSBL/Inc/stm32n6xx_hal_conf.h ----
+    # HAL modules enabled by the FSBL configuration.
     "${HAL_ROOT}/Src/stm32n6xx_hal.c"
     "${HAL_ROOT}/Src/stm32n6xx_hal_bsec.c"
     "${HAL_ROOT}/Src/stm32n6xx_hal_cortex.c"
@@ -67,6 +50,7 @@ add_executable(FSBL
 
 target_include_directories(FSBL PRIVATE
     "${FSBL_DIR}/Inc"
+    "${REPO_ROOT}/Inc"
     "${EXTMEM_ROOT}"
     "${EXTMEM_ROOT}/boot"
     "${EXTMEM_ROOT}/nor_sfdp"
@@ -82,7 +66,7 @@ target_compile_definitions(FSBL PRIVATE
     USE_HAL_DRIVER
 )
 
-# Flag arch identici al main project (Cortex-M55 + FPU hard, secure)
+# Match the application Cortex-M55 hard-float and secure architecture.
 target_compile_options(FSBL PRIVATE
     -mcpu=cortex-m55
     -mfpu=fpv5-d16
@@ -114,9 +98,12 @@ set_target_properties(FSBL PROPERTIES
     LINK_DEPENDS "${LINKER_SCRIPT}"
 )
 
-# Genera FSBL.bin accanto a FSBL.elf
+# Produce the unsigned binary next to FSBL.elf for the signing step.
 add_custom_command(TARGET FSBL POST_BUILD
     COMMAND ${CMAKE_OBJCOPY} -O binary "$<TARGET_FILE:FSBL>" "${CMAKE_BINARY_DIR}/FSBL.bin"
     COMMAND ${CMAKE_SIZE} "$<TARGET_FILE:FSBL>"
     COMMENT "Generating FSBL.bin"
 )
+
+# Normal builds never program OTP. Provisioning is an explicit board operation.
+target_compile_definitions(FSBL PRIVATE NO_OTP_FUSE)

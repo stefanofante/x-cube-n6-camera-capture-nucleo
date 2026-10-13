@@ -1,275 +1,180 @@
 # x-cube-n6-camera-capture-nucleo
 
-UVC (USB Video Class) camera-capture firmware for the **STM32 Nucleo‑N657X0‑Q**
-board. The MCU acquires frames from an MIPI‑CSI2 image sensor, encodes them
-with the on‑chip H.264 hardware video encoder and exposes the stream to the
-host PC as a standard UVC webcam over USB High‑Speed.
+UVC camera firmware for **NUCLEO-N657X0-Q**, using an IMX335 MIPI-CSI2 camera, DCMIPP/ISP processing, the STM32N657 hardware H.264 encoder and USB High-Speed output. The configured profile is **480 x 272 H.264 at a nominal 30 fps**.
 
-This is a port / adaptation of the original ST example
-[`x-cube-n6-camera-capture`](https://github.com/STMicroelectronics/x-cube-n6-camera-capture)
-(DK board) to the **Nucleo‑N657X0‑Q**, with the following main differences:
+The application orchestration uses C++20 with static classes, fixed-size frame pools and explicit ownership. HAL, CMSIS, camera middleware, FreeRTOS, USBX and the encoder implementation remain vendored C code. No STM32CubeIDE project, external Cube pack or external PSRAM is required to build.
 
-- no external PSRAM: all buffers fit in the internal AXISRAM/DTCM;
-- no LCD / touch: the only output path is the UVC USB stream;
-- a fully **vendored** First Stage Boot Loader (FSBL) sub‑project so the
-  firmware can actually be programmed into the onboard Octo‑SPI NOR and run
-  standalone;
-- CMake + Ninja + VS Code tasks for build / sign / flash (STM32CubeIDE not
-  required, only STM32CubeProgrammer).
+This revision passes ARM builds, local sanitizer regression tests and linked-memory checks. Its revised boot, snapshot capture and streaming paths still require cold-boot and USB tests on the physical board. Performance improvements described below are implementation changes, not measured hardware speedup claims.
 
-> Status: working prototype. Default stream is **480×272 H.264 @ 30 fps**
-> (single stream, monochrome — see [Limitations](#limitations)).
+## Hardware and resource budget
 
----
+| Resource | Board/device capability | Firmware use |
+| --- | --- | --- |
+| MCU | STM32N657X0, Cortex-M55 | Existing 800 MHz CPU configuration, hard-float, secure-only FreeRTOS |
+| Internal AXI SRAM | SRAM1 and SRAM2 are 1 MiB each in the CMSIS device definitions | Only these two banks are used by this firmware's memory layout |
+| Additional SRAM/DTCM | Present in the device memory map | Not required by this layout |
+| External PSRAM | Not fitted on this Nucleo | Not used |
+| External NOR | Onboard MX25UM51245G, 512 Mbit / 64 MiB | Signed FSBL at `0x70000000`, signed application at `0x70100000` |
+| Camera | IMX335 on MB1854 MIPI-CSI2 daughterboard | Camera middleware, ISP and DCMIPP pipe 1 |
+| Encoder | On-chip VENC/H.264 hardware | One instance, 768 KiB static linear DMA arena |
+| USB | USB1 OTG HS and embedded PHY, user connector CN13 | UVC Frame-Based H.264, USBX standalone worker |
+| Debug/programming | Onboard ST-LINK/V3 | External NOR loader through STM32CubeProgrammer |
+| UART | USART1, PE5/PE6, 115200 baud | Bounded diagnostic ring and one low-priority transmit task |
 
-## Hardware
+Other sensors supported by the vendored camera middleware have not been validated with this revision. The application accepts the configured Nucleo H.264 profile; it does not enable the DK's larger or uncompressed profiles.
 
-| Item                  | Part                                             | Notes                                                        |
-| --------------------- | ------------------------------------------------ | ------------------------------------------------------------ |
-| MCU board             | **NUCLEO‑N657X0‑Q** (STM32N657X0HxQ, Cortex‑M55) | Onboard ST‑LINK/V3, user USB on CN13 (High‑Speed)            |
-| External NOR          | **Macronix MX25UM51245G** (512 Mb Octo‑SPI)      | Onboard, used for FSBL + signed application                  |
-| Camera                | **Sony IMX335** on MB1854 MIPI‑CSI2 daughterboard | 5 MP, 2‑lane MIPI, used at 2592×1940 raw then downsized      |
-| (Alternative sensor)  | VD66GY / VD6G, VD55G1, VD1943                    | Camera middleware already supports them (untested on Nucleo) |
-| Host                  | PC with any UVC‑capable app                       | Windows Camera, OBS, VLC, `ffplay`, …                        |
+### Internal SRAM layout
 
-Nucleo boot pins must be set to **Flash boot** for standalone operation.
+All addresses below are secure aliases. Bounds are shared in `Inc/board_memory.h` and checked against the final ELF by `Tools/check_layout.py`.
 
----
+| Region | Address range, upper bound exclusive | Capacity | Purpose |
+| --- | --- | ---: | --- |
+| Signed application header | `0x34000000` - `0x34000400` | 1 KiB | STM32 v2.3 header |
+| Application RAM | `0x34000400` - `0x34070000` | 447 KiB | Vectors, code, constants, data, BSS, task metadata/stacks, newlib heap and main stack |
+| Internal DMA storage | `0x34070000` - `0x341f0000` | 1536 KiB | Capture frames, compressed output and encoder arena |
+| Uncached USB storage | `0x341f0000` - `0x34200000` | 64 KiB | USBX DMA pool and PCD state |
 
-## What the firmware does
+The DMA budget is 510 KiB for two YUY2 capture buffers, 128 KiB for two H.264 output buffers and 768 KiB for the encoder arena: **1406 KiB used, 130 KiB remaining**. The checked USB region uses about 33.25 KiB, leaving about 30.75 KiB. The application binary is approximately 306 KiB with the tested Debug configuration; BSS, heap and stack consume additional application RAM and are separately checked by the linker.
 
-1. Powers up, configures the system clock (PLL1 → 800 MHz CPU) and the MPU.
-2. Brings up the MIPI‑CSI2 receiver and the IMX335 sensor through the
-   **Camera Middleware** (`Lib/Camera_Middleware`) + **ISP library**.
-3. Captures frames through DCMIPP in YUY2 pixel format.
-4. Feeds the raw luma plane to the **STM32 H.264 hardware encoder**
-   (Verisilicon H1 IP, integrated in STM32N6). A static grey UV plane is
-   inserted so the output stream is a valid YUV 4:2:0 bitstream (the image
-   is monochrome — see [Limitations](#limitations)).
-5. Packs the compressed H.264 NAL units into UVC Frame‑Based payloads and
-   sends them to the host over USB High‑Speed.
-6. Runs on FreeRTOS with a dedicated task for capture, encode and USB.
+DMA and USB memory are non-cacheable and execute-never. Application code and metadata remain outside those MPU regions. There is no per-frame CPU cache maintenance requirement for these DMA buffers, and no speculative use of unavailable PSRAM or extra SRAM banks.
 
-Resulting USB device: a standard UVC webcam advertising one stream, default
-**480×272 H.264 @ 30 fps**.
+The boot ROM still loads the FSBL vectors at `0x34180400`. The FSBL copies the application header and payload into the lower application region, so it cannot overwrite itself during loading. DMA/USB storage may reuse FSBL RAM **only after the jump to the application**: those sections are `NOLOAD`, never included in the copied binary, and initialized or used only by the application.
 
-A second, uncompressed (YUY2) stream is defined for the DK build but is
-disabled on the Nucleo because there is not enough SRAM for a full 720p YUY2
-frame buffer.
+## Boot and image validation
 
----
+The FSBL uses the vendored Load & Run memory manager with a local override of its application-size hook. It reads the actual STM32 v2.3 payload length instead of copying a fixed 64 KiB. Validation checks:
 
-## Project layout
+- STM32 magic and header version;
+- payload length, source bounds and the 448 KiB signed-image capacity;
+- the fixed application stack boundary and a Thumb reset address within the loaded payload;
+- the additive payload checksum before copying or jumping.
 
-```
-.
-├── CMakeLists.txt              # main application build
-├── CMakePresets.json
-├── STM32N657xx_nucleo.ld       # app linker script (all‑RAM, Load & Run)
-├── cmake/
-│   └── gcc-arm-none-eabi.cmake # toolchain file
-├── Inc/ , Src/                 # application code (app_*.c/h, main.c, …)
-├── Gcc/Src/                    # GCC‑specific glue (syscalls, console, …)
-├── Lib/
-│   ├── Camera_Middleware/      # ST Camera middleware + sensor drivers + ISP
-│   ├── FreeRTOS/               # FreeRTOS kernel sources
-│   └── uvcl/                   # Lightweight UVC class stack
-├── Middlewares/ST/usbx/        # Azure RTOS USBX (device)
-├── STM32Cube_FW_N6/            # Single, frozen copy of the ST CubeN6 pack
-│   ├── Drivers/                #   HAL + CMSIS + BSP (Nucleo + DK)
-│   └── Middlewares/            #   H.264 encoder, EWL, ExtMem_Manager, …
-├── Tools/
-│   └── FSBL/                   # Vendored First Stage Boot Loader sub‑project
-└── .vscode/
-    ├── tasks.json              # build / sign / flash tasks
-    └── launch.json             # debug configurations
-```
+Invalid images stop boot. The application vectors must be at `0x34000400`; application and FSBL linker assertions and the layout checker enforce the corresponding memory contract. A successful compilation alone does not establish that an image has been signed or booted on the board.
 
-All third‑party / ST code is **frozen** inside the repository: building the
-project does **not** require any external pack, CubeMX project, or reference
-to `C:\devel\STM32CubeN6`. Only the GCC toolchain and STM32CubeProgrammer
-are external dependencies.
+These are **development integrity checks**, not signature authentication. The provided signing tasks use `-nk` and are not a production secure-boot configuration. Normal app and FSBL builds do not program OTP. Any required I/O high-speed OTP provisioning is a separate board procedure: check the actual I/O voltages, device documentation and STM32CubeProgrammer configuration before making irreversible changes.
 
----
+## Optimization and robustness changes in this revision
 
-## Boot model (Load & Run)
+- **Static C++20 orchestration:** `StreamController` owns stream transitions; `FramePool` carries explicit states, stream generations and FIFO acquisition tickets. There are no intrusive buffer lists or paired list/semaphore counters. Application control and DMA storage are static; the vendored encoder still allocates its software control structures through newlib.
+- **Snapshot capture:** DCMIPP stops writing before a completed frame becomes Ready. Capture is rearmed only into a free buffer, so encoder reads cannot race a continuous DMA overwrite. The sensor may keep streaming while acquisition pauses under backpressure. Actual throughput and rearm latency must be measured on the board.
+- **Camera lifecycle serialization:** one camera worker handles capture and ISP operations. A mutex makes initialization and teardown mutually exclusive with that worker. Stale completion generations are ignored, and old peripheral completion flags are cleared before a new stream starts.
+- **Event-driven scheduling:** frame, stream and USB-slot notifications replace 1 ms polling. USB waits have a per-frame deadline, camera completion has a finite timeout, and recoverable camera failures receive at most three attempts per host request. The camera worker stops issuing new operations after a fault, allowing the controller to recover. A hardware stop failure halts rather than recycling memory still accessible to DMA.
+- **Correct UVC packets:** payload-based packet counts cover every frame-size remainder without reading past valid data. Abort/restart clears packet indices. USB acceptance and stop detach ownership atomically; failed submissions receive no release callback and accepted submissions release exactly once. Disconnect follows the same cleanup path.
+- **One fewer USB copy:** encoded bytes are copied directly into a USBX payload buffer, alongside the two-byte UVC header. The intermediate full-packet staging copy is removed. EOF and End-of-Header flags are set explicitly, and packet progress advances only after USBX accepts the payload.
+- **H.264 recovery and timing:** pre-encode drops do not force unnecessary IDR frames. Encoded-but-unsent frames do force the next intra frame because the encoder reference chain advanced. Rate control uses captured millisecond intervals, including dropped-frame gaps, with wrap-safe bounded timing. Level 3.1 covers this profile; filler NAL padding includes valid headers and trailing bits.
+- **Bounded encoder arena:** offset-based allocation checks capacity before forming pointers, aligns each allocation to 32 bytes, preserves a high-water mark and resets only after encoder teardown. Input structures are zero-initialized and API failures preserve encoder error codes.
+- **Bounded diagnostics:** a 1 KiB ring feeds a low-priority UART task in 64-byte chunks with finite timeouts. Overflow is best-effort and counted in `console_dropped_bytes`. Fatal errors save file, line, reason and fault status in `app_fault_record`, without depending on UART, heap or scheduler locks. Fault handling and stack-overflow checks remain active with `NDEBUG`.
+- **Build portability:** the C++ standard is selected by CMake, C/C++ share board/device feature definitions, unsupported ST complexity diagnostics are filtered after a compiler capability check, and the application `.bin` is generated automatically. No RTTI, exceptions, C++ heap operators or dynamic global constructors are required by the linked application.
 
-The Nucleo‑N6 has **no internal flash**; code lives on the external Octo‑SPI
-NOR. Execution uses the ST **Load & Run** scheme:
+Telemetry distinguishes encoding, accepted submissions and frames whose bytes have been staged into USBX. `usb_staged_fps` is **not** a measurement of frames received or decoded by the host. Reported rates use the actual elapsed RTOS interval. Telemetry also reports the encoder arena lifetime peak and the stream/camera task stack high-water free space in bytes. Frame pools and fault/log counters are debugger-visible. These runtime values still need to be observed on the board.
 
-```
-Octo‑SPI NOR (MX25UM51245G)              Internal memory
-┌──────────────────────────────┐         ┌────────────────────────┐
-│ 0x70000000  FSBL  (signed)   │ ──ROM──▶│ AXISRAM2   FSBL runs   │
-│ 0x70100000  App   (signed)   │ ──FSBL─▶│ AXISRAM1/2 App runs    │
-└──────────────────────────────┘         └────────────────────────┘
+Optimization choices such as LTO, larger buffers, cacheable frame storage or additional vectorization are not enabled speculatively. They require a new resource budget and measurements using the same sensor settings, scene, bitrate and toolchain. MVE task context support remains disabled; the revision adds no MVE requirement.
+
+## Build requirements and commands
+
+| Tool | Requirement |
+| --- | --- |
+| Arm GNU toolchain | `arm-none-eabi-gcc` and `arm-none-eabi-g++`, C++20 library headers and newlib/nano support |
+| CMake | 3.22 or newer for the supplied presets |
+| Ninja | 1.10 or newer |
+| Python | Python 3 for the ELF/layout checker |
+| Host compiler | C11/C++20 compiler for local regression tests |
+| STM32CubeProgrammer | 2.22.0 or compatible version with SigningTool v2.3 and the Nucleo NOR loader |
+
+The revision was built using GCC ARM 14.2.1, CMake 3.31.6 and Ninja 1.12.1. The ST-patched 14.3.1 toolchain documented by the original port remains an alternative requiring its own validation. Frozen third-party sources are included; no network package fetch is part of CMake configuration.
+
+From the repository root, with the Arm tools on PATH:
+
+```sh
+# Application: configure the complete device/feature preset, then build.
+cmake --preset Debug
+cmake --build --preset Debug --parallel 4
+
+# FSBL: select the Arm toolchain explicitly, never the host compiler.
+cmake -S Tools/FSBL -B Tools/FSBL/build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  --toolchain "$PWD/cmake/gcc-arm-none-eabi.cmake"
+cmake --build Tools/FSBL/build --parallel 4
+
+# Validate final artifacts and the board resource contract.
+python3 Tools/check_layout.py
 ```
 
-- The BootROM verifies the FSBL signature and loads it to AXISRAM2.
-- The FSBL brings up the Octo‑SPI in memory‑mapped mode, copies the signed
-  application to AXISRAM and jumps to it.
-- Both binaries are signed with `STM32_SigningTool_CLI` (dummy keys, for
-  development only).
+Outputs:
 
-The FSBL source tree is under `Tools/FSBL/` — see its own
-[README](Tools/FSBL/README.md) for details.
+- `build/Debug/x-cube-n6-camera-capture-nucleo.elf`, `.bin`, `.map` and `compile_commands.json`;
+- `Tools/FSBL/build/FSBL.elf`, `FSBL.bin` and `FSBL.map`.
 
----
+`cube-cmake` can supply the ST toolchain PATH, but is not required. For cloud tasks using the prepared local tool installation, run `source /workspace/cloud-tools/activate.sh` before these commands. Build directories are ignored; generated firmware is not committed.
 
-## Toolchain
+## Local regression tests
 
-| Tool                                | Version tested             | Notes                                      |
-| ----------------------------------- | -------------------------- | ------------------------------------------ |
-| `arm-none-eabi-gcc`                 | 14.3.1 + ST patches        | Bundled with STM32CubeIDE / Cube extension |
-| CMake                               | ≥ 3.22                     |                                            |
-| Ninja                               | ≥ 1.10                     |                                            |
-| **STM32CubeProgrammer**             | **2.22.0**                 | Required for sign + flash                  |
-| VS Code + C/C++ ext.                | latest                     | Optional but integrates the provided tasks |
-| `cube-cmake` wrapper                | from STM32 VS Code ext.    | Convenience wrapper that sets the path to the bundled GCC |
+Tests run explicitly on the host and do not require a camera, USB connection or signing tool:
 
-STM32CubeProgrammer is expected at the default install location:
-
-```
-C:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/
-  ├── STM32_Programmer_CLI.exe
-  └── STM32_SigningTool_CLI.exe
+```sh
+cmake -S tests -B build/host-tests -G Ninja
+cmake --build build/host-tests --parallel 4
+ctest --test-dir build/host-tests --output-on-failure
 ```
 
-The VS Code tasks accept an override path if it is installed elsewhere.
+AddressSanitizer and UndefinedBehaviorSanitizer are enabled by default for supported GCC/Clang hosts. Disable them only when the local host cannot run those tools, using `-DENABLE_SANITIZERS=OFF`; that does not count as sanitizer validation.
 
----
+The suites cover pool generations, duplicate/stale release, FIFO order, arena alignment/overflow, H.264 padding and timing, 131,072 packet-size cases, malformed synthetic boot headers and the actual UVC submit/stop/abort functions. Minimal HAL declarations let hardware-independent UVC functions run on the host; they do not simulate peripheral timing or interrupts.
 
-## Building
+Checks with assertions disabled:
 
-### VS Code (recommended)
+```sh
+cmake -S tests -B build/host-ndebug -G Ninja \
+  -DCMAKE_C_FLAGS=-DNDEBUG -DCMAKE_CXX_FLAGS=-DNDEBUG
+cmake --build build/host-ndebug --parallel 4
+ctest --test-dir build/host-ndebug --output-on-failure
 
-1. Open the workspace folder.
-2. Run the CMake **Configure** task (generates `build/Debug/`).
-3. Run the CMake **Build** task → produces
-   `build/Debug/x-cube-n6-camera-capture-nucleo.elf` and `.bin`.
-4. Run task **N6: Configure FSBL** and **N6: Build FSBL** →
-   produces `Tools/FSBL/build/FSBL.elf` and `FSBL.bin`.
-
-### Command line
-
-```powershell
-# Application
-cube-cmake -S . -B build\Debug -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cube-cmake --build build\Debug
-
-# FSBL
-cube-cmake -S Tools\FSBL -B Tools\FSBL\build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cube-cmake --build Tools\FSBL\build
+cmake --preset Debug -B build/ndebug \
+  -DCMAKE_C_FLAGS=-DNDEBUG -DCMAKE_CXX_FLAGS=-DNDEBUG
+cmake --build build/ndebug --parallel 4
+python3 Tools/check_layout.py \
+  --app build/ndebug/x-cube-n6-camera-capture-nucleo.elf
 ```
 
-`cube-cmake` is a thin wrapper that exports the GCC bundled with the
-STM32CubeIDE VS Code extension. Any `arm-none-eabi-gcc` on PATH works too
-— just point the toolchain file at it.
+Both ARM configurations and all three host suites have passed. The layout checker also confirms vector/stack placement, `NOLOAD` DMA sections, exclusion of OTP programming and absence of unwanted C++ runtime dependencies. Legacy warnings in vendored C middleware remain visible and are not evidence of passing hardware validation.
 
----
+**GitHub CI/CD is prohibited for this repository.** Do not add GitHub Actions, automated deployment workflows or equivalent GitHub automation. The build, test, sign and programming steps are manual/local operations.
 
-## Programming the board
+## Sign and program the board
 
-All flash/sign operations are wrapped as VS Code tasks
-([.vscode/tasks.json](.vscode/tasks.json)) that call
-`STM32_Programmer_CLI.exe` and `STM32_SigningTool_CLI.exe`. External
-loader used is **`MX25UM51245G_STM32N6570-NUCLEO.stldr`**.
+Set the Nucleo boot pins for Flash boot. Use STM32CubeProgrammer and the external loader **`MX25UM51245G_STM32N6570-NUCLEO.stldr`**. Build both images first, sign them with STM32 header version 2.3, then program:
 
-Tasks available:
+| Image | Signing options | NOR address |
+| --- | --- | --- |
+| `Tools/FSBL/build/FSBL.bin` | `-t fsbl -hv 2.3 -nk` | `0x70000000` |
+| Application `.bin` | `-t ssbl -hv 2.3 -nk` | `0x70100000` |
 
-| Task                                 | Purpose                                          |
-| ------------------------------------ | ------------------------------------------------ |
-| `N6: Configure FSBL`                 | CMake configure for the FSBL sub‑project         |
-| `N6: Build FSBL`                     | Ninja build of `FSBL.bin`                        |
-| `N6: Sign FSBL`                      | Produce a signed FSBL image                      |
-| `N6: Sign App`                       | Produce a signed application image               |
-| `N6: Program FSBL`                   | Flash signed FSBL at `0x70000000`                |
-| `N6: Program App`                    | Flash signed application at `0x70100000`         |
-| `N6: Build + Sign + Program App`     | One‑shot application update loop                 |
-| `N6: Full Program (FSBL + App)`      | First‑time provisioning                          |
-| `N6: Erase External Flash`           | Full chip erase via the external loader          |
+The VS Code tasks in `.vscode/tasks.json` configure/build before signing and allow programmer, signing tool and external-loader paths to be selected. Default executable paths are Windows STM32CubeProgrammer locations; override them on other hosts. `N6: Full Program (FSBL + App)` signs and programs both components in sequence. When changing the memory layout, update **both** FSBL and application on the board.
 
-Typical first‑time sequence:
+After reset, connect the user USB port and select the UVC camera in a compatible host application such as OBS, VLC or ffplay. The current software passes YUYV input directly to the hardware encoder; it does not create a static grey chroma plane. Actual color, decoder compatibility and stream timing require observation on the board.
 
-```
-N6: Build FSBL          →  N6: Sign FSBL   →  N6: Program FSBL
-cmake build app         →  N6: Sign App    →  N6: Program App
-```
+### Required physical-board validation
 
-After that, day‑to‑day updates only need **Build + Sign + Program App**.
+Before calling the revised firmware operational, verify:
 
----
+1. SigningTool output really contains a v2.3 1 KiB header with the expected payload length and checksum; host parser tests use synthetic envelopes.
+2. Cold boot without a debugger, full-image loading and the new application vectors/stack.
+3. Repeated start/stop and USB unplug/reset during capture, encode and payload transmission, with pool ownership reconciled afterward.
+4. Missing sensor, stalled capture, encoder output overflow and UART saturation, including recovery deadlines and debugger-readable fault records.
+5. H.264 parsing and decoding on at least two independent host decoders, including IDR recovery after dropped encoded frames.
+6. Sustained measured throughput, capture-to-host latency, worst-case ISR duration, task stack high-water marks and encoder arena peak usage.
 
-## Using the webcam
+These checks were not executed in the cloud. No signing, flashing, OTP writes or measured hardware performance result is implied by the successful local builds and tests.
 
-1. After `Program App`, reset the board.
-2. Plug the **user USB** cable (CN13, USB‑C on the Nucleo) into the PC.
-3. A new UVC device **STM32 N6 Camera** (or similar) appears.
-4. Open any UVC‑aware application and select the stream — you should see
-   the live camera image.
+## Source layout and licenses
 
-`ffplay` example:
+- `Src/app.cpp`: static stream controller, camera worker and buffer ownership;
+- `Src/app_enc.cpp`: encoder configuration, timestamped frames and bounded DMA allocation;
+- `Src/app_cam.c`: camera/ISP HAL adaptation with explicit status returns;
+- `Inc/static_storage.hpp`: host-testable fixed pools, timing and arena utilities;
+- `Lib/uvcl`: UVC packetization and USBX integration;
+- `Tools/FSBL`: bootloader and image validation;
+- `Tools/check_layout.py`, `tests`: explicit local verification;
+- `STM32Cube_FW_N6`, `Lib/Camera_Middleware`, `Lib/FreeRTOS`: frozen upstream components.
 
-```powershell
-ffplay -f dshow -i video="STM32 N6 Camera"
-```
-
-OBS, VLC and Windows Camera also work.
-
----
-
-## Limitations
-
-- **Monochrome output.** The H.264 encoder requires YUV 4:2:0 input. Only
-  the luma plane is filled from the sensor; a static grey chroma plane is
-  injected, so colour information is lost. This is a RAM/bandwidth
-  trade‑off driven by the Nucleo having no external PSRAM — the DK build
-  of the original project provides colour.
-- **Single stream, 480×272 @ 30 fps.** Higher resolutions would need
-  external PSRAM. Sensor is configured in binning/crop modes that the
-  IMX335 driver already supports; a 1920×1080 YUY2 path would fit the
-  encoder but not the current SRAM budget.
-- **Signing keys are the ST dummy development keys.** Do not use this
-  configuration for production devices.
-
----
-
-## Credits and references
-
-This project reuses and adapts code from several upstream ST projects; all
-sources are vendored in this repository, each under its original license.
-
-| Component                                           | Upstream                                                                                       | Where in this repo                               |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Original camera‑capture example (DK)                | [STMicroelectronics/x-cube-n6-camera-capture](https://github.com/STMicroelectronics/x-cube-n6-camera-capture) | `Src/`, `Inc/`, `Lib/uvcl/`                      |
-| STM32CubeN6 MCU package (HAL, CMSIS, BSP, FSBL ref.) | [STMicroelectronics/STM32CubeN6](https://github.com/STMicroelectronics/STM32CubeN6)            | `STM32Cube_FW_N6/` , `Tools/FSBL/`               |
-| H.264 hardware encoder driver + EWL                 | `STMicroelectronics` Verisilicon H1 port (shipped inside STM32CubeN6 Middlewares/Third_Party) | `STM32Cube_FW_N6/Middlewares/Third_Party/VideoEncoder`, `STM32Cube_FW_N6/Middlewares/ST/VideoEncoder_EWL` |
-| Camera middleware + ISP library                     | [STMicroelectronics/stm32-camera-middleware](https://github.com/STMicroelectronics/stm32-camera-middleware) | `Lib/Camera_Middleware/`                         |
-| USBX (Azure RTOS)                                   | Microsoft / Eclipse ThreadX                                                                   | `Middlewares/ST/usbx/`                           |
-| FreeRTOS kernel                                     | [FreeRTOS.org](https://www.freertos.org)                                                      | `Lib/FreeRTOS/`                                  |
-| External memory manager                             | ST `stm32-mw-extmem-manager` (from STM32CubeN6)                                               | `STM32Cube_FW_N6/Middlewares/ST/STM32_ExtMem_Manager` |
-
-The FSBL (`Tools/FSBL/`) is derived from the
-**`Template_FSBL_LRUN`** project in
-`STM32CubeN6/Projects/NUCLEO-N657X0-Q/Templates/` and has been converted
-to a standalone CMake build.
-
----
-
-## License
-
-Application‑specific files in `Src/`, `Inc/`, `Gcc/`, `cmake/`, `Tools/FSBL/`
-are distributed under the same terms as the original ST example they derive
-from — see [`Inc/LICENSE.md`](Inc/LICENSE.md).
-
-Each vendored third‑party component keeps its original license file
-alongside its sources (e.g. `Lib/Camera_Middleware/LICENSE.md`,
-`STM32Cube_FW_N6/Middlewares/Third_Party/VideoEncoder/LICENSE.txt`, …).
-
----
-
-## Contributing / Issues
-
-This is a personal port published as‑is. Bug reports and PRs are welcome,
-but keep in mind that upstream fixes belong in the original ST repositories
-listed above.
+This project derives from [STMicroelectronics/x-cube-n6-camera-capture](https://github.com/STMicroelectronics/x-cube-n6-camera-capture), [STM32CubeN6](https://github.com/STMicroelectronics/STM32CubeN6) and [stm32-camera-middleware](https://github.com/STMicroelectronics/stm32-camera-middleware), together with USBX, FreeRTOS and the vendored Verisilicon encoder. Application-derived code follows the terms in [Inc/LICENSE.md](Inc/LICENSE.md); each third-party component retains its own license and copyright notices.

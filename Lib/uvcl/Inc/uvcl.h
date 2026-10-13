@@ -37,6 +37,10 @@
 #define UVCL_PAYLOAD_FB_JPEG 6
 #define UVCL_PAYLOAD_FB_GREY_D3DFMT_L8 7
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
   int payload_type;
   int width;
@@ -55,6 +59,8 @@ typedef struct {
 typedef struct uvcl_callbacks {
   void (*streaming_active)(struct uvcl_callbacks *cbs, UVCL_StreamConf_t stream);
   void (*streaming_inactive)(struct uvcl_callbacks *cbs);
+  /* A notification that the single pending slot has become available. */
+  void (*frame_slot_available)(struct uvcl_callbacks *cbs);
   void (*frame_release)(struct uvcl_callbacks *cbs, void *frame);
 } UVCL_Callbacks_t;
 
@@ -65,5 +71,11 @@ int UVCL_Deinit(void);
 void UVCL_IRQHandler(void);
 /* return 0 if frame will be displayed. else it won't be displayed */
 int UVCL_ShowFrame(void *frame, int frame_size);
+/* Advisory only: ShowFrame remains the authoritative acceptance operation. */
+int UVCL_CanAcceptFrame(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

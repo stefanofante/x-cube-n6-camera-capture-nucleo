@@ -20,9 +20,11 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "uvcl_desc.h"
 #include "uvcl_internal.h"
+#include "uvcl_packet.h"
 
 #ifdef UVC_LIB_USE_USBX
 #include "uvcl_usbx.h"
@@ -48,6 +50,9 @@ PCD_HandleTypeDef uvcl_pcd_handle;
 
 #if defined(UVC_LIB_USE_DMA) && defined(UVC_LIB_USE_STM32_USBD)
 static uint8_t packet[UVC_ISO_HS_MPS] UVCL_UNCACHED UVCL_ALIGN_32;
+#elif defined(UVC_LIB_USE_USBX)
+/* USBX payload buffers receive data directly; only the UVC header is staged. */
+static uint8_t packet[2];
 #else
 static uint8_t packet[UVC_ISO_HS_MPS];
 #endif
@@ -60,7 +65,7 @@ static int UVCL_FpsOk(UVCL_Ctx_t *p_ctx)
   if (p_ctx->conf.is_immediate_mode)
     return 1;
 
-  if (HAL_GetTick() - p_ctx->frame_start >= p_ctx->frame_period_in_ms)
+  if (HAL_GetTick() - p_ctx->frame_start >= (uint32_t)p_ctx->frame_period_in_ms)
   {
     return 1;
   }
@@ -71,13 +76,13 @@ static int UVCL_FpsOk(UVCL_Ctx_t *p_ctx)
 static void UVCL_FillSentData(UVCL_Ctx_t *p_ctx, UVCL_OnFlyCtx_t *on_fly_ctx, uint8_t *p_frame, int fsize,
                              int packet_size)
 {
-  on_fly_ctx->packet_nb = (fsize + packet_size - 1) / (packet_size - 2);
-  on_fly_ctx->last_packet_size = fsize % (packet_size - 2);
-  if (!on_fly_ctx->last_packet_size)
-  {
-    on_fly_ctx->packet_nb--;
-    on_fly_ctx->last_packet_size = packet_size - 2;
-  }
+  /* Clear every per-frame field, including indices left by an aborted
+   * transmission. Packet planning counts payload bytes, not USB headers. */
+  memset(on_fly_ctx, 0, sizeof(*on_fly_ctx));
+  on_fly_ctx->frame_index = -1;
+  if (UVCL_PlanPackets(fsize, packet_size, &on_fly_ctx->packet_nb,
+                      &on_fly_ctx->last_packet_size))
+    return;
   on_fly_ctx->p_frame = p_frame;
   on_fly_ctx->cursor = p_frame;
   p_ctx->packet[1] ^= 1;
@@ -90,12 +95,14 @@ static UVCL_OnFlyCtx_t *UVCL_StartSelectedRaw(UVCL_Ctx_t *p_ctx, int packet_size
 {
   UVCL_OnFlyCtx_t *on_fly_ctx = &p_ctx->on_fly_storage_ctx;
 
-  on_fly_ctx->frame_index = -1;
+  const uint32_t flags = UVCL_Lock();
   UVCL_FillSentData(p_ctx, on_fly_ctx, p_ctx->p_frame, p_ctx->frame_size, packet_size);
 
   __DMB();
   p_ctx->p_frame = NULL;
-
+  UVCL_Unlock(flags);
+  if (p_ctx->cbs->frame_slot_available)
+    p_ctx->cbs->frame_slot_available(p_ctx->cbs);
   return on_fly_ctx;
 }
 
@@ -119,7 +126,6 @@ static int UVCL_handle_set_itf_setup_request(UVCL_Ctx_t *p_ctx, UVCL_SetupReq_t 
     ret = req->start_streaming(req->ctx);
     break;
   default:
-    assert(0);
     return -1;
   }
 
@@ -135,7 +141,6 @@ static int UVCL_handle_std_itf_setup_request(UVCL_Ctx_t *p_ctx, UVCL_SetupReq_t 
     ret = UVCL_handle_set_itf_setup_request(p_ctx, req);
     break;
   default:
-    assert(0);
     return -1;
   }
 
@@ -181,7 +186,6 @@ static int UVCL_handle_probe_control_request(UVCL_Ctx_t *p_ctx, UVCL_SetupReq_t 
     ret = UVCL_handle_probe_control_set_request(p_ctx, req);
     break;
   default:
-    assert(0);
     return -1;
   }
 
@@ -203,7 +207,6 @@ static int UVCL_handle_commit_control_request(UVCL_Ctx_t *p_ctx, UVCL_SetupReq_t
     ret = UVCL_handle_probe_commit_set_request(p_ctx, req);
     break;
   default:
-    assert(0);
     return -1;
   }
 
@@ -228,7 +231,6 @@ static int UVCL_handle_class_itf_setup_request(UVCL_Ctx_t *p_ctx, UVCL_SetupReq_
     ret = UVCL_handle_commit_control_request(p_ctx, req);
     break;
   default:
-    assert(0);
     return -1;
   }
 
@@ -247,7 +249,6 @@ static int UVCL_handle_itf_setup_request(UVCL_Ctx_t *p_ctx, UVCL_SetupReq_t *req
     ret = UVCL_handle_class_itf_setup_request(p_ctx, req);
     break;
   default:
-    assert(0);
     return -1;
   }
 
@@ -311,7 +312,8 @@ static int UVCL_cbs_check(UVCL_Callbacks_t *cbs)
 
 static int UVCL_stream_check(UVCL_StreamConf_t *stream)
 {
-  if (stream->width <= 0 || stream->height <= 0 || stream->fps <= 0)
+  if (stream->width <= 0 || stream->height <= 0 || stream->fps <= 0 ||
+      stream->fps > 1000 || (uint64_t)stream->width * stream->height * 3U > INT_MAX)
     return -1;
 
   if (stream->payload_type != UVCL_PAYLOAD_UNCOMPRESSED_YUY2 &&
@@ -362,7 +364,6 @@ static int compare_streams(const void *p1, const void *p2)
   if (s1->height != s2->height)
     return s1->height - s2->height;
 
-  assert(s1->fps != s2->fps);
 
   return s1->fps - s2->fps;
 }
@@ -422,6 +423,7 @@ static void UVCL_ctx_init_streams_p(UVCL_Ctx_t *p_ctx)
 
 static void UVCL_ctx_init(UVCL_Ctx_t *p_ctx, UVCL_Conf_t *conf, UVCL_Callbacks_t *cbs)
 {
+  memset(p_ctx, 0, sizeof(*p_ctx));
   p_ctx->conf = *conf;
   p_ctx->cbs = cbs;
   p_ctx->buffer_nb = USBX_BUFFER_NB;
@@ -457,7 +459,6 @@ int UVCL_handle_setup_request(UVCL_Ctx_t *p_ctx, UVCL_SetupReq_t *req)
     ret = UVCL_handle_itf_setup_request(p_ctx, req);
     break;
   default:
-    assert(0);
     return -1;
   }
 
@@ -477,22 +478,42 @@ void UVCL_UpdateOnFlyCtx(UVCL_Ctx_t *p_ctx, int len)
   if (on_fly_ctx->packet_index)
     return ;
 
-  /* Once displayed we can make frame free */
-  assert(on_fly_ctx->p_frame);
-  p_ctx->cbs->frame_release(p_ctx->cbs, on_fly_ctx->p_frame);
-
-  /* We reach last packet */
+  /* Detach ownership before notifying the application. A reentrant stop or
+   * duplicate completion can no longer release this frame a second time. */
+  uint8_t *frame = on_fly_ctx->p_frame;
+  on_fly_ctx->p_frame = NULL;
   p_ctx->on_fly_ctx = NULL;
+  if (frame) p_ctx->cbs->frame_release(p_ctx->cbs, frame);
 }
 
 void UVCL_AbortOnFlyCtx(UVCL_Ctx_t *p_ctx)
 {
+  const uint32_t flags = UVCL_Lock();
   UVCL_OnFlyCtx_t *on_fly_ctx = p_ctx->on_fly_ctx;
-
-  assert(on_fly_ctx);
-
-  p_ctx->cbs->frame_release(p_ctx->cbs, on_fly_ctx->p_frame);
+  uint8_t *frame = on_fly_ctx ? on_fly_ctx->p_frame : NULL;
   p_ctx->on_fly_ctx = NULL;
+  if (on_fly_ctx) memset(on_fly_ctx, 0, sizeof(*on_fly_ctx));
+  UVCL_Unlock(flags);
+  if (frame) p_ctx->cbs->frame_release(p_ctx->cbs, frame);
+}
+
+void UVCL_StopContext(UVCL_Ctx_t *p_ctx)
+{
+  /* ShowFrame and stop form a single ownership transaction. A successful
+   * submit receives exactly one release; a failed submit receives none.
+   * Callbacks run outside this short interrupt-masked metadata update. */
+  const uint32_t flags = UVCL_Lock();
+  p_ctx->state = UVCL_STATUS_STOP;
+  uint8_t *queued = p_ctx->p_frame;
+  uint8_t *active = p_ctx->on_fly_ctx ? p_ctx->on_fly_ctx->p_frame : NULL;
+  p_ctx->p_frame = NULL;
+  p_ctx->on_fly_ctx = NULL;
+  memset(&p_ctx->on_fly_storage_ctx, 0, sizeof(p_ctx->on_fly_storage_ctx));
+  UVCL_Unlock(flags);
+  if (active) p_ctx->cbs->frame_release(p_ctx->cbs, active);
+  if (queued) p_ctx->cbs->frame_release(p_ctx->cbs, queued);
+  if (p_ctx->cbs->streaming_inactive)
+    p_ctx->cbs->streaming_inactive(p_ctx->cbs);
 }
 
 uint32_t UVCL_ComputedwMaxVideoFrameSize(UVCL_Ctx_t *ctx, int format_idx, int frame_idx)
@@ -502,14 +523,14 @@ uint32_t UVCL_ComputedwMaxVideoFrameSize(UVCL_Ctx_t *ctx, int format_idx, int fr
   int payload_type;
   int height;
   int width;
-  int res;
+  uint32_t res;
   int i;
 
   for (i = 0; i < conf->streams_nb; i++) {
     if (ctx->streams_p[i].bFormatIndex == format_idx && ctx->streams_p[i].bFrameIndex == frame_idx)
       break;
   }
-  assert(i != conf->streams_nb);
+  if (i == conf->streams_nb) return 0;
 
   dwMaxVideoFrameSize = conf->streams[i].dwMaxVideoFrameSize;
   payload_type = conf->streams[i].payload_type;
@@ -530,13 +551,13 @@ uint32_t UVCL_ComputedwMaxVideoFrameSize(UVCL_Ctx_t *ctx, int format_idx, int fr
     res = width * height * 3;
     break;
   case UVCL_PAYLOAD_JPEG:
-    res = dwMaxVideoFrameSize ?  dwMaxVideoFrameSize : width * height;
+    res = dwMaxVideoFrameSize ?  dwMaxVideoFrameSize : (uint32_t)width * (uint32_t)height;
     break;
   case UVCL_PAYLOAD_FB_H264:
-    res = dwMaxVideoFrameSize ?  dwMaxVideoFrameSize : width * height;
+    res = dwMaxVideoFrameSize ?  dwMaxVideoFrameSize : (uint32_t)width * (uint32_t)height;
     break;
   case UVCL_PAYLOAD_FB_JPEG:
-    res = dwMaxVideoFrameSize ?  dwMaxVideoFrameSize : width * height;
+    res = dwMaxVideoFrameSize ?  dwMaxVideoFrameSize : (uint32_t)width * (uint32_t)height;
     break;
   default:
     assert(0);
@@ -545,7 +566,7 @@ uint32_t UVCL_ComputedwMaxVideoFrameSize(UVCL_Ctx_t *ctx, int format_idx, int fr
   return res;
 }
 
-void UVCL_SetupStreamingStream(UVCL_Ctx_t *ctx, UVCL_StreamConf_t *stream)
+int UVCL_SetupStreamingStream(UVCL_Ctx_t *ctx, UVCL_StreamConf_t *stream)
 {
   uint32_t dwFrameInterval = ctx->UVC_VideoCommitControl.dwFrameInterval;
   uint8_t bFormatIndex = ctx->UVC_VideoCommitControl.bFormatIndex;
@@ -557,15 +578,17 @@ void UVCL_SetupStreamingStream(UVCL_Ctx_t *ctx, UVCL_StreamConf_t *stream)
         dwFrameInterval == ctx->streams_p[i].dwFrameInterval)
       break;
   }
-  assert(i < ctx->conf.streams_nb);
+  if (i == ctx->conf.streams_nb) return -1;
 
   *stream = ctx->conf.streams[i];
+  return 0;
 }
 
 /* public API */
 /* FIXME : handle errors correctly */
 int UVCL_Init(PCD_TypeDef *pcd_instance, UVCL_Conf_t *conf_given, UVCL_Callbacks_t *cbs)
 {
+  if (!conf_given) return -1;
   UVCL_Conf_t conf = *conf_given;
   int ret;
 
@@ -586,6 +609,8 @@ int UVCL_Init(PCD_TypeDef *pcd_instance, UVCL_Conf_t *conf_given, UVCL_Callbacks
   if (ret)
     return ret;
 
+  UVCL_ctx_init(&ctx, &conf, cbs);
+
 #ifdef UVC_LIB_USE_USBX
   ret = UVCL_usbx_init(&ctx, &uvcl_pcd_handle, pcd_instance, &conf);
 #endif
@@ -594,8 +619,6 @@ int UVCL_Init(PCD_TypeDef *pcd_instance, UVCL_Conf_t *conf_given, UVCL_Callbacks
 #endif
   if (ret)
     return ret;
-
-  UVCL_ctx_init(&ctx, &conf, cbs);
 
   return HAL_PCD_Start(&uvcl_pcd_handle);
 }
@@ -620,27 +643,27 @@ void UVCL_IRQHandler()
 #endif
 }
 
+int UVCL_CanAcceptFrame(void)
+{
+  const uint32_t flags = UVCL_Lock();
+  const int ready = p_ctx_single && p_ctx_single->state == UVCL_STATUS_STREAMING && !p_ctx_single->p_frame;
+  UVCL_Unlock(flags);
+  return ready;
+}
+
 int UVCL_ShowFrame(void *frame, int frame_size)
 {
+  if (!frame || frame_size <= 0) return -1;
+  const uint32_t flags = UVCL_Lock();
   UVCL_Ctx_t *p_ctx = p_ctx_single;
-
-  if (p_ctx->state != UVCL_STATUS_STREAMING)
+  if (!p_ctx || p_ctx->state != UVCL_STATUS_STREAMING || p_ctx->p_frame ||
+      (p_ctx->on_fly_ctx && p_ctx->on_fly_ctx->p_frame == frame)) {
+    UVCL_Unlock(flags);
     return -1;
-  if (p_ctx->p_frame)
-    return -1;
-  if (!frame)
-    return -1;
-  if (!frame_size)
-    return -1;
-
+  }
   p_ctx->frame_size = frame_size;
   __DMB();
   p_ctx->p_frame = frame;
-
-  if (p_ctx->state == UVCL_STATUS_STOP) {
-    p_ctx->p_frame = NULL;
-    return -1;
-  }
-
+  UVCL_Unlock(flags);
   return 0;
 }

@@ -1,55 +1,22 @@
-# FSBL — Load & Run per NUCLEO-N657X0-Q
+# NUCLEO-N657X0-Q Load & Run bootloader
 
-Sotto-progetto CMake autonomo che compila un **First Stage Boot Loader**.
-Tutti i sorgenti sono **vendored** nel repository: nessuna dipendenza da path
-esterni, build riproducibile.
+This standalone CMake target uses the vendored STM32N6 HAL, CMSIS and external-memory manager. It maps the onboard MX25UM51245G NOR through XSPI2, validates a development STM32 v2.3 application image and copies its header and complete payload into internal SRAM.
 
-## Struttura
+From the repository root, with `arm-none-eabi-gcc`, CMake and Ninja on PATH:
 
-```
-Tools/FSBL/
-├── CMakeLists.txt
-├── README.md
-├── STM32N657XX_AXISRAM2_fsbl.ld   # linker script (AXISRAM2)
-├── Inc/                           # header FSBL
-│   ├── main.h
-│   ├── extmem.h
-│   ├── stm32_extmem_conf.h
-│   ├── stm32n6xx_hal_conf.h       # HAL config specifico FSBL
-│   └── stm32n6xx_it.h
-├── Src/                           # sorgenti FSBL
-│   ├── main.c                     # init clock/MPU, chiama EXTMEM_Boot
-│   ├── extmem.c                   # config Octo-SPI / NOR SFDP
-│   ├── stm32n6xx_hal_msp.c
-│   ├── stm32n6xx_it.c
-│   ├── system_stm32n6xx_fsbl.c    # CMSIS system file versione FSBL
-│   ├── syscalls.c, sysmem.c       # stub newlib
-└── Startup/
-    └── startup_stm32n657xx_fsbl.s # vettori FSBL
+```sh
+cmake -S Tools/FSBL -B Tools/FSBL/build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  --toolchain "$PWD/cmake/gcc-arm-none-eabi.cmake"
+cmake --build Tools/FSBL/build --parallel 4
 ```
 
-Sorgenti **condivisi** con l'applicazione (stessa versione HAL, nessuna
-duplicazione):
+The outputs are `Tools/FSBL/build/FSBL.elf`, `FSBL.bin` and `FSBL.map`. Sign the unsigned binary with STM32CubeProgrammer's signing tool using `-t fsbl -hv 2.3 -nk`, then program the signed image at `0x70000000` using the Nucleo external loader. The main README describes the complete programming sequence.
 
-- `STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/`
-- `STM32Cube_FW_N6/Drivers/CMSIS/`
-- `STM32Cube_FW_N6/Middlewares/ST/STM32_ExtMem_Manager/`
+The ROM-loaded FSBL vectors remain at `0x34180400`. The application image begins at `0x34000000`; its 1 KiB header puts the application vectors at `0x34000400`. Its entire signed image must fit below `0x34070000`, without overwriting the executing FSBL. Application DMA buffers may reuse FSBL RAM only after the jump; they are `NOLOAD` and are excluded from the copied application binary.
 
-## Cosa fa al boot
+`boot_image.c` validates magic, header version, bounded payload length, the fixed stack boundary, a Thumb reset address inside the payload and the STM32 additive payload checksum. `boot_validation.c` overrides the middleware's weak fixed-length hook, replacing the former 64 KiB copy limit. Invalid images stop before any copy or jump. These development checks do not authenticate signatures and must not be presented as production secure boot.
 
-1. La ROM ST copia l'FSBL firmato da Octo-SPI `0x70000000` ad AXISRAM2.
-2. L'FSBL configura clock/PLL, cache, MPU, Octo-SPI memory-mapped.
-3. Copia l'immagine app firmata (da `0x70100000`) in AXISRAM e salta
-   all'entry point dell'applicazione ("Load & Run").
+Normal builds define `NO_OTP_FUSE`. Boot must not program irreversible OTP bits. Any required I/O high-speed provisioning is a separate physical-board procedure using the correct voltage and device documentation.
 
-## Build
-
-```powershell
-cube-cmake -S Tools/FSBL -B Tools/FSBL/build -G Ninja `
-           --toolchain cmake/gcc-arm-none-eabi.cmake
-cube-cmake --build Tools/FSBL/build
-```
-
-Oppure da VS Code: `Terminal ▸ Run Task…` → **N6: Build FSBL**.
-
-Output: `Tools/FSBL/build/FSBL.bin` (da firmare con `STM32_SigningTool_CLI`).
+Run the host parser tests and `python3 Tools/check_layout.py` after building both targets. Signing with STM32CubeProgrammer and cold boot on the actual Nucleo remain required hardware validation steps; host tests use synthetic headers. There is no GitHub CI/CD.

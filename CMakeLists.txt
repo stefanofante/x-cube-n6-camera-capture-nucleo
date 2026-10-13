@@ -5,15 +5,34 @@ cmake_minimum_required(VERSION 3.20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 # Project definition
-project(x-cube-n6-camera-capture-nucleo)
+project(x-cube-n6-camera-capture-nucleo LANGUAGES C CXX ASM)
 
 # Enable CMake support for ASM and C/CPP languages
-enable_language(C ASM)
+enable_language(C CXX ASM)
 
 set(BUILD_UNIT_0_NAME x-cube-n6-camera-capture-nucleo)
 
 # Create an executable object type
 add_executable(${BUILD_UNIT_0_NAME})
+
+# ST toolchains provide an additional diagnostic option. Keep the same
+# presets usable with standard Arm GNU compilers by checking support first.
+include(CheckCCompilerFlag)
+check_c_compiler_flag("-fcyclomatic-complexity" HAS_CYCLOMATIC_COMPLEXITY)
+if(NOT HAS_CYCLOMATIC_COMPLEXITY)
+  foreach(_flags CUBE_CMAKE_C_FLAGS CUBE_CMAKE_CXX_FLAGS)
+    list(FILTER ${_flags} EXCLUDE REGEX "^-fcyclomatic-complexity$")
+  endforeach()
+endif()
+
+# Let CMake choose the C++ language standard; a legacy -std=gnu++14 option
+# later in the generated command would otherwise override cxx_std_20.
+list(FILTER CUBE_CMAKE_CXX_FLAGS EXCLUDE REGEX "^-std=")
+# C and C++ share the same device, board and middleware feature definitions.
+set(_cpp_definitions ${CUBE_CMAKE_C_FLAGS})
+list(FILTER _cpp_definitions INCLUDE REGEX "^-D")
+target_compile_options(${BUILD_UNIT_0_NAME} PRIVATE
+  $<$<COMPILE_LANGUAGE:CXX>:${_cpp_definitions}>)
 
 # STM32CubeIDE for Visual Studio Code managed CMake file
 include(cmake/vscode_generated.cmake)
@@ -40,7 +59,9 @@ target_link_options(${BUILD_UNIT_0_NAME} PRIVATE
 # Add sources to executable/library
 target_sources(${BUILD_UNIT_0_NAME} PRIVATE
   # H264 encoder application API
-  Src/app_enc.c
+  Src/app.cpp
+  Src/app_enc.cpp
+  Src/app_fault.c
   # Low-Level VENC driver (IP clock / reset / init)
   STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Src/stm32n6xx_ll_venc.c
   # EWL (Encoder Wrapper Layer) — ST implementation on top of VENC IP
@@ -108,11 +129,22 @@ set_source_files_properties(
   PROPERTIES COMPILE_OPTIONS "-Wno-incompatible-pointer-types;-Wno-implicit-function-declaration;-Wno-int-conversion"
 )
 
-# Exclude the old MJPEG path from the auto-generated source list.
-# `cmake/vscode_generated.cmake` lists Src/app_jpg.c and Src/app_cvt.c; both
-# are now replaced by the H264 encoder path driven by app_enc.c.
+# Replace legacy orchestration with the C++20 pipeline. Conversion/MJPEG and
+# automatic OTP programming are deliberately excluded from the Nucleo target.
 get_target_property(_srcs ${BUILD_UNIT_0_NAME} SOURCES)
 if(_srcs)
-  list(FILTER _srcs EXCLUDE REGEX "Src/app_jpg\\.c$")
+  list(FILTER _srcs EXCLUDE REGEX "Src/(app|app_jpg|app_cvt|app_fuseprogramming)\\.c$")
   set_property(TARGET ${BUILD_UNIT_0_NAME} PROPERTY SOURCES "${_srcs}")
 endif()
+
+# Application C++ uses static storage and the C ABI of the vendored middleware.
+# CMSE and hard-float settings must match the C task context on Cortex-M55.
+target_compile_features(${BUILD_UNIT_0_NAME} PRIVATE cxx_std_20)
+target_compile_options(${BUILD_UNIT_0_NAME} PRIVATE
+  $<$<COMPILE_LANGUAGE:CXX>:-mcmse;-fno-exceptions;-fno-rtti;-fno-use-cxa-atexit>)
+set_target_properties(${BUILD_UNIT_0_NAME} PROPERTIES LINKER_LANGUAGE CXX)
+add_custom_command(TARGET ${BUILD_UNIT_0_NAME} POST_BUILD
+  COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${BUILD_UNIT_0_NAME}>
+          ${CMAKE_BINARY_DIR}/${BUILD_UNIT_0_NAME}.bin
+  COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${BUILD_UNIT_0_NAME}>
+  COMMENT "Generating application binary and reporting SRAM usage")
