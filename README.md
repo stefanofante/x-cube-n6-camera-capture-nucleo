@@ -138,8 +138,6 @@ python3 Tools/check_layout.py \
 
 Both ARM configurations and all three host suites have passed. The layout checker also confirms vector/stack placement, `NOLOAD` DMA sections, exclusion of OTP programming and absence of unwanted C++ runtime dependencies. Legacy warnings in vendored C middleware remain visible and are not evidence of passing hardware validation.
 
-**GitHub CI/CD is prohibited for this repository.** Do not add GitHub Actions, automated deployment workflows or equivalent GitHub automation. The build, test, sign and programming steps are manual/local operations.
-
 ## Sign and program the board
 
 Set the Nucleo boot pins for Flash boot. Use STM32CubeProgrammer and the external loader **`MX25UM51245G_STM32N6570-NUCLEO.stldr`**. Build both images first, sign them with STM32 header version 2.3, then program:
